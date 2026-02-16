@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package chat.v1;
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/chat/v1";
+
+message Conversation {
+  string id = 1;
+  repeated string participant_ids = 2;
+}
