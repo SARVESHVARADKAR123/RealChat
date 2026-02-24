@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package messaging.v1;
+
+import "messaging/v1/message.proto";
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/messaging/v1;messagingv1";
+
+
+// ======================================================
+// Delivery Event
+// ======================================================
+
+message DeliveryEvent {
+  string conversation_id = 1;
+  int64 sequence = 2;
+  Message message = 3;
+}
+
+
+
+
+// ======================================================
+// Client Connect
+// ======================================================
+
+message DeliveryConnectRequest {
+  string user_id = 1;
+  string device_id = 2;
+
+  string conversation_id = 3;
+
+  // Device watermark.
+  int64 last_received_sequence = 4;
+}
+
+
+// ======================================================
+// Delivery API
+// ======================================================
+
+service DeliveryApi {
+
+  // Bidirectional stream.
+  rpc Connect(stream DeliveryConnectRequest)
+      returns (stream DeliveryEvent);
+}

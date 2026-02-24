@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package presence.v1;
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/presence/v1";
+
+service PresenceApi {
+    rpc GetPresence(GetPresenceRequest) returns (GetPresenceResponse);
+}
+
+message GetPresenceRequest {
+    repeated string user_ids = 1;
+}
+
+message UserPresence {
+    string user_id = 1;
+    bool online = 2;
+    repeated string device_ids = 3;
+}
+
+message GetPresenceResponse {
+    repeated UserPresence presences = 1;
+}
+
+enum PresenceStatus {
+    PRESENCE_STATUS_UNSPECIFIED = 0;
+    PRESENCE_STATUS_ONLINE = 1;
+    PRESENCE_STATUS_OFFLINE = 2;
+}
+
+message PresenceUpdateEvent {
+    string user_id = 1;
+    PresenceStatus status = 2;
+    int64 occurred_at = 3;
+}

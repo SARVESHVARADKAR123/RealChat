@@ -1,7 +1,13 @@
 version: v1
+
+name: buf.build/realchat/contracts
+
+deps: []
+
 breaking:
   use:
     - FILE
+
 lint:
   use:
     - STANDARD

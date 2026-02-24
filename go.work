@@ -2,5 +2,9 @@ go 1.25.1
 
 use (
 	./contracts
-	./infra/runtime-proof
+	./edge/gateway
+	./services/auth
+	./services/delivery
+	./services/message
+	./services/profile
 )

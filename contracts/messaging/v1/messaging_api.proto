@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+package messaging.v1;
+
+import "messaging/v1/message.proto";
+import "messaging/v1/conversation.proto";
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/messaging/v1;messagingv1";
+
+
+// ======================================================
+// Conversation Lifecycle
+// ======================================================
+
+message CreateConversationRequest {
+  string conversation_id = 1;
+
+  // Field 2: was bool is_group, now ConversationType (wire-compatible, both encode as varint).
+  ConversationType type = 2;
+  string display_name = 3;
+  string avatar_url = 4;
+
+  // Direct: exactly 2 participants.
+  // Group: first participant is creator (admin), at least 2 total.
+  repeated string participant_user_ids = 5;
+}
+
+message CreateConversationResponse {
+  Conversation conversation = 1;
+}
+
+message AddParticipantRequest {
+  string conversation_id = 1;
+  string actor_user_id = 2;
+  string target_user_id = 3;
+}
+
+message AddParticipantResponse {}
+
+message RemoveParticipantRequest {
+  string conversation_id = 1;
+  string actor_user_id = 2;
+  string target_user_id = 3;
+}
+
+message RemoveParticipantResponse {}
+
+
+// ======================================================
+// Messaging
+// ======================================================
+
+message SendMessageRequest {
+  string conversation_id = 1;
+  string sender_user_id = 2;
+
+  // Required for idempotency.
+  string idempotency_key = 3;
+
+  string message_type = 4;
+  string content = 5;
+  string metadata_json = 6;
+}
+
+message SendMessageResponse {
+  Message message = 1;
+}
+
+message DeleteMessageRequest {
+  string conversation_id = 1;
+  string message_id = 2;
+  string actor_user_id = 3;
+}
+
+message DeleteMessageResponse {}
+
+
+// ======================================================
+// Read Receipts (Watermark Model)
+// ======================================================
+
+message UpdateReadReceiptRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+
+  // Highest contiguous sequence read.
+  int64 read_sequence = 3;
+}
+
+message UpdateReadReceiptResponse {}
+
+
+// ======================================================
+// Sync (History Fetch)
+// ======================================================
+
+message SyncMessagesRequest {
+  string conversation_id = 1;
+
+  // Return messages with sequence > after_sequence.
+  int64 after_sequence = 2;
+
+  int32 page_size = 3; // server-enforced upper bound
+}
+
+message SyncMessagesResponse {
+  repeated Message messages = 1;
+}
+
+message ListConversationsRequest {
+  string user_id = 1;
+}
+
+message ListConversationsResponse {
+  repeated Conversation conversations = 1;
+}
+
+message GetConversationRequest {
+  string conversation_id = 1;
+}
+
+message GetConversationResponse {
+  Conversation conversation = 1;
+  repeated string participant_user_ids = 2;
+}
+
+
+// ======================================================
+// Messaging API
+// ======================================================
+
+service MessagingApi {
+
+  rpc CreateConversation(CreateConversationRequest)
+      returns (CreateConversationResponse);
+
+  rpc ListConversations(ListConversationsRequest)
+      returns (ListConversationsResponse);
+
+  rpc GetConversation(GetConversationRequest)
+      returns (GetConversationResponse);
+
+  rpc AddParticipant(AddParticipantRequest)
+      returns (AddParticipantResponse);
+
+  rpc RemoveParticipant(RemoveParticipantRequest)
+      returns (RemoveParticipantResponse);
+
+  rpc SendMessage(SendMessageRequest)
+      returns (SendMessageResponse);
+
+  rpc DeleteMessage(DeleteMessageRequest)
+      returns (DeleteMessageResponse);
+
+  rpc UpdateReadReceipt(UpdateReadReceiptRequest)
+      returns (UpdateReadReceiptResponse);
+
+  rpc SyncMessages(SyncMessagesRequest)
+      returns (SyncMessagesResponse);
+}

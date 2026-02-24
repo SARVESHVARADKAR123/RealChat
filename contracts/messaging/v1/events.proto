@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package messaging.v1;
+
+import "google/protobuf/timestamp.proto";
+import "messaging/v1/message.proto";
+import "messaging/v1/conversation.proto";
+
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/messaging/v1;messagingv1";
+
+
+// ======================================================
+// Event Type
+// ======================================================
+
+enum MessagingEventType {
+  MESSAGING_EVENT_TYPE_UNSPECIFIED = 0;
+  MESSAGING_EVENT_TYPE_MESSAGE_SENT = 1;
+  MESSAGING_EVENT_TYPE_MESSAGE_DELETED = 2;
+  MESSAGING_EVENT_TYPE_READ_RECEIPT_UPDATED = 3;
+  MESSAGING_EVENT_TYPE_MEMBERSHIP_CHANGED = 4;
+  MESSAGING_EVENT_TYPE_CONVERSATION_CREATED = 5;
+  MESSAGING_EVENT_TYPE_PRESENCE_UPDATED = 6;
+}
+
+
+// ======================================================
+// Event Envelope
+// ======================================================
+
+message MessagingEventEnvelope {
+  MessagingEventType event_type = 1;
+
+  // Schema evolution support.
+  int32 schema_version = 2;
+
+  google.protobuf.Timestamp occurred_at = 3;
+
+  // Serialized payload.
+  bytes payload = 4;
+}
+
+
+// ======================================================
+// Event Payloads
+// ======================================================
+
+message MessageSentEvent {
+  Message message = 1;
+}
+
+message MessageDeletedEvent {
+  string conversation_id = 1;
+  string message_id = 2;
+}
+
+message ReadReceiptUpdatedEvent {
+  string conversation_id = 1;
+  string user_id = 2;
+  int64 read_sequence = 3;
+}
+
+message MembershipChangedEvent {
+  string conversation_id = 1;
+  string user_id = 2;
+  bool added = 3;
+}
+
+message ConversationCreatedEvent {
+  Conversation conversation = 1;
+  repeated string participant_user_ids = 2;
+}
