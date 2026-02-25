@@ -8,7 +8,6 @@ import (
 	authv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/auth/v1"
 	"github.com/SARVESHVARADKAR123/RealChat/edge/gateway/internal/middleware"
 	"github.com/SARVESHVARADKAR123/RealChat/edge/gateway/internal/transport"
-	"google.golang.org/grpc/metadata"
 )
 
 type AuthHandler struct {
@@ -30,12 +29,17 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Email == "" || req.Password == "" {
+		transport.WriteError(w, http.StatusBadRequest, "missing_fields", "email and password are required")
+		return
+	}
+
 	ctx, cancel := transport.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
 	// Propagate request ID
 	reqID := middleware.RequestIDFromContext(r.Context())
-	ctx = metadata.AppendToOutgoingContext(ctx, "x-request-id", reqID)
+	ctx = transport.WithRequestID(ctx, reqID)
 
 	resp, err := h.client.Login(ctx, &authv1.LoginRequest{
 		Email:    req.Email,
@@ -60,12 +64,17 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Email == "" || req.Password == "" {
+		transport.WriteError(w, http.StatusBadRequest, "missing_fields", "email and password are required")
+		return
+	}
+
 	ctx, cancel := transport.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
 	// Propagate request ID
 	reqID := middleware.RequestIDFromContext(r.Context())
-	ctx = metadata.AppendToOutgoingContext(ctx, "x-request-id", reqID)
+	ctx = transport.WithRequestID(ctx, reqID)
 
 	resp, err := h.client.Register(ctx, &authv1.RegisterRequest{
 		Email:    req.Email,

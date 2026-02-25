@@ -13,11 +13,13 @@ import (
 type contextKey string
 
 const (
-	UserIDKey    contextKey = "user_id"
-	HeaderUserID            = "x-user-id"
+	UserIDKey       contextKey = "user_id"
+	RequestIDKey    contextKey = "request_id"
+	HeaderUserID               = "x-user-id"
+	HeaderRequestID            = "x-request-id"
 )
 
-// Interceptor extracts the x-user-id header and injects it into the context.
+// Interceptor extracts the x-user-id and x-request-id headers and injects them into the context.
 func Interceptor(
 	ctx context.Context,
 	req interface{},
@@ -27,26 +29,49 @@ func Interceptor(
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		// If metadata is missing but it's GetConversation, we allow it (internal call)
-		if info.FullMethod == "/messaging.v1.MessagingApi/GetConversation" {
-			return handler(ctx, req)	
-		}
 		return nil, status.Error(codes.Unauthenticated, "metadata is not provided")
 	}
 
-	values := md.Get(HeaderUserID)
-	if len(values) == 0 || values[0] == "" {
-		// Exempt GetConversation from mandatory header
-		if info.FullMethod == "/messaging.v1.MessagingApi/GetConversation" {
-			return handler(ctx, req)	
-		}
+	// Extract User ID
+	var newCtx context.Context = ctx
+	userValues := md.Get(HeaderUserID)
+	if len(userValues) > 0 && userValues[0] != "" {
+		newCtx = context.WithValue(newCtx, UserIDKey, userValues[0])
+	} else {
 		return nil, status.Error(codes.Unauthenticated, "x-user-id header is missing")
 	}
 
-	userID := values[0]
-	newCtx := context.WithValue(ctx, UserIDKey, userID)
+	// Extract Request ID
+	reqValues := md.Get(HeaderRequestID)
+	if len(reqValues) > 0 && reqValues[0] != "" {
+		newCtx = context.WithValue(newCtx, RequestIDKey, reqValues[0])
+	}
 
 	return handler(newCtx, req)
+}
+
+// ClientInterceptor propagates user-id and request-id to outgoing gRPC calls.
+func ClientInterceptor(
+	ctx context.Context,
+	method string,
+	req, reply interface{},
+	cc *grpc.ClientConn,
+	invoker grpc.UnaryInvoker,
+	opts ...grpc.CallOption,
+) error {
+	// Propagate UserID
+	if userID, err := GetUserID(ctx); err == nil {
+		ctx = metadata.AppendToOutgoingContext(ctx, HeaderUserID, userID)
+	}
+
+	// Propagate RequestID
+	if val := ctx.Value(RequestIDKey); val != nil {
+		if reqID, ok := val.(string); ok {
+			ctx = metadata.AppendToOutgoingContext(ctx, HeaderRequestID, reqID)
+		}
+	}
+
+	return invoker(ctx, method, req, reply, cc, opts...)
 }
 
 // GetUserID retrieves the authenticated user ID from context.

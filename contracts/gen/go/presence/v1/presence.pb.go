@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: presence/v1/presence.proto
 
-package v1
+package presencev1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -218,10 +218,422 @@ func (x *GetPresenceResponse) GetPresences() []*UserPresence {
 	return nil
 }
 
+type RegisterSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	DeviceId      string                 `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	InstanceId    string                 `protobuf:"bytes,3,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterSessionRequest) Reset() {
+	*x = RegisterSessionRequest{}
+	mi := &file_presence_v1_presence_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterSessionRequest) ProtoMessage() {}
+
+func (x *RegisterSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_presence_v1_presence_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterSessionRequest.ProtoReflect.Descriptor instead.
+func (*RegisterSessionRequest) Descriptor() ([]byte, []int) {
+	return file_presence_v1_presence_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *RegisterSessionRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *RegisterSessionRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *RegisterSessionRequest) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
+	}
+	return ""
+}
+
+type RegisterSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterSessionResponse) Reset() {
+	*x = RegisterSessionResponse{}
+	mi := &file_presence_v1_presence_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterSessionResponse) ProtoMessage() {}
+
+func (x *RegisterSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_presence_v1_presence_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterSessionResponse.ProtoReflect.Descriptor instead.
+func (*RegisterSessionResponse) Descriptor() ([]byte, []int) {
+	return file_presence_v1_presence_proto_rawDescGZIP(), []int{4}
+}
+
+type UnregisterSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	DeviceId      string                 `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnregisterSessionRequest) Reset() {
+	*x = UnregisterSessionRequest{}
+	mi := &file_presence_v1_presence_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnregisterSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnregisterSessionRequest) ProtoMessage() {}
+
+func (x *UnregisterSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_presence_v1_presence_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnregisterSessionRequest.ProtoReflect.Descriptor instead.
+func (*UnregisterSessionRequest) Descriptor() ([]byte, []int) {
+	return file_presence_v1_presence_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *UnregisterSessionRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UnregisterSessionRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+type UnregisterSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnregisterSessionResponse) Reset() {
+	*x = UnregisterSessionResponse{}
+	mi := &file_presence_v1_presence_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnregisterSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnregisterSessionResponse) ProtoMessage() {}
+
+func (x *UnregisterSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_presence_v1_presence_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnregisterSessionResponse.ProtoReflect.Descriptor instead.
+func (*UnregisterSessionResponse) Descriptor() ([]byte, []int) {
+	return file_presence_v1_presence_proto_rawDescGZIP(), []int{6}
+}
+
+type RefreshSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	DeviceId      string                 `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshSessionRequest) Reset() {
+	*x = RefreshSessionRequest{}
+	mi := &file_presence_v1_presence_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshSessionRequest) ProtoMessage() {}
+
+func (x *RefreshSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_presence_v1_presence_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshSessionRequest.ProtoReflect.Descriptor instead.
+func (*RefreshSessionRequest) Descriptor() ([]byte, []int) {
+	return file_presence_v1_presence_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RefreshSessionRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *RefreshSessionRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+type RefreshSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshSessionResponse) Reset() {
+	*x = RefreshSessionResponse{}
+	mi := &file_presence_v1_presence_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshSessionResponse) ProtoMessage() {}
+
+func (x *RefreshSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_presence_v1_presence_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshSessionResponse.ProtoReflect.Descriptor instead.
+func (*RefreshSessionResponse) Descriptor() ([]byte, []int) {
+	return file_presence_v1_presence_proto_rawDescGZIP(), []int{8}
+}
+
+type GetUserDevicesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserDevicesRequest) Reset() {
+	*x = GetUserDevicesRequest{}
+	mi := &file_presence_v1_presence_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserDevicesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserDevicesRequest) ProtoMessage() {}
+
+func (x *GetUserDevicesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_presence_v1_presence_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserDevicesRequest.ProtoReflect.Descriptor instead.
+func (*GetUserDevicesRequest) Descriptor() ([]byte, []int) {
+	return file_presence_v1_presence_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetUserDevicesRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type DeviceInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	InstanceId    string                 `protobuf:"bytes,2,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeviceInfo) Reset() {
+	*x = DeviceInfo{}
+	mi := &file_presence_v1_presence_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeviceInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeviceInfo) ProtoMessage() {}
+
+func (x *DeviceInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_presence_v1_presence_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeviceInfo.ProtoReflect.Descriptor instead.
+func (*DeviceInfo) Descriptor() ([]byte, []int) {
+	return file_presence_v1_presence_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DeviceInfo) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *DeviceInfo) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
+	}
+	return ""
+}
+
+type GetUserDevicesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Devices       []*DeviceInfo          `protobuf:"bytes,1,rep,name=devices,proto3" json:"devices,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserDevicesResponse) Reset() {
+	*x = GetUserDevicesResponse{}
+	mi := &file_presence_v1_presence_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserDevicesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserDevicesResponse) ProtoMessage() {}
+
+func (x *GetUserDevicesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_presence_v1_presence_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserDevicesResponse.ProtoReflect.Descriptor instead.
+func (*GetUserDevicesResponse) Descriptor() ([]byte, []int) {
+	return file_presence_v1_presence_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetUserDevicesResponse) GetDevices() []*DeviceInfo {
+	if x != nil {
+		return x.Devices
+	}
+	return nil
+}
+
 type PresenceUpdateEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Status        PresenceStatus         `protobuf:"varint,2,opt,name=status,proto3,enum=presence.v1.PresenceStatus" json:"status,omitempty"`
+	Status        PresenceStatus         `protobuf:"varint,2,opt,name=status,proto3,enum=realchat.presence.v1.PresenceStatus" json:"status,omitempty"`
 	OccurredAt    int64                  `protobuf:"varint,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -229,7 +641,7 @@ type PresenceUpdateEvent struct {
 
 func (x *PresenceUpdateEvent) Reset() {
 	*x = PresenceUpdateEvent{}
-	mi := &file_presence_v1_presence_proto_msgTypes[3]
+	mi := &file_presence_v1_presence_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -241,7 +653,7 @@ func (x *PresenceUpdateEvent) String() string {
 func (*PresenceUpdateEvent) ProtoMessage() {}
 
 func (x *PresenceUpdateEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_presence_v1_presence_proto_msgTypes[3]
+	mi := &file_presence_v1_presence_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -254,7 +666,7 @@ func (x *PresenceUpdateEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresenceUpdateEvent.ProtoReflect.Descriptor instead.
 func (*PresenceUpdateEvent) Descriptor() ([]byte, []int) {
-	return file_presence_v1_presence_proto_rawDescGZIP(), []int{3}
+	return file_presence_v1_presence_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PresenceUpdateEvent) GetUserId() string {
@@ -282,27 +694,54 @@ var File_presence_v1_presence_proto protoreflect.FileDescriptor
 
 const file_presence_v1_presence_proto_rawDesc = "" +
 	"\n" +
-	"\x1apresence/v1/presence.proto\x12\vpresence.v1\"/\n" +
+	"\x1apresence/v1/presence.proto\x12\x14realchat.presence.v1\"/\n" +
 	"\x12GetPresenceRequest\x12\x19\n" +
 	"\buser_ids\x18\x01 \x03(\tR\auserIds\"^\n" +
 	"\fUserPresence\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06online\x18\x02 \x01(\bR\x06online\x12\x1d\n" +
 	"\n" +
-	"device_ids\x18\x03 \x03(\tR\tdeviceIds\"N\n" +
-	"\x13GetPresenceResponse\x127\n" +
-	"\tpresences\x18\x01 \x03(\v2\x19.presence.v1.UserPresenceR\tpresences\"\x84\x01\n" +
+	"device_ids\x18\x03 \x03(\tR\tdeviceIds\"W\n" +
+	"\x13GetPresenceResponse\x12@\n" +
+	"\tpresences\x18\x01 \x03(\v2\".realchat.presence.v1.UserPresenceR\tpresences\"o\n" +
+	"\x16RegisterSessionRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12\x1f\n" +
+	"\vinstance_id\x18\x03 \x01(\tR\n" +
+	"instanceId\"\x19\n" +
+	"\x17RegisterSessionResponse\"P\n" +
+	"\x18UnregisterSessionRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\"\x1b\n" +
+	"\x19UnregisterSessionResponse\"M\n" +
+	"\x15RefreshSessionRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\"\x18\n" +
+	"\x16RefreshSessionResponse\"0\n" +
+	"\x15GetUserDevicesRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"J\n" +
+	"\n" +
+	"DeviceInfo\x12\x1b\n" +
+	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12\x1f\n" +
+	"\vinstance_id\x18\x02 \x01(\tR\n" +
+	"instanceId\"T\n" +
+	"\x16GetUserDevicesResponse\x12:\n" +
+	"\adevices\x18\x01 \x03(\v2 .realchat.presence.v1.DeviceInfoR\adevices\"\x8d\x01\n" +
 	"\x13PresenceUpdateEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x123\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x1b.presence.v1.PresenceStatusR\x06status\x12\x1f\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12<\n" +
+	"\x06status\x18\x02 \x01(\x0e2$.realchat.presence.v1.PresenceStatusR\x06status\x12\x1f\n" +
 	"\voccurred_at\x18\x03 \x01(\x03R\n" +
 	"occurredAt*j\n" +
 	"\x0ePresenceStatus\x12\x1f\n" +
 	"\x1bPRESENCE_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16PRESENCE_STATUS_ONLINE\x10\x01\x12\x1b\n" +
-	"\x17PRESENCE_STATUS_OFFLINE\x10\x022_\n" +
-	"\vPresenceApi\x12P\n" +
-	"\vGetPresence\x12\x1f.presence.v1.GetPresenceRequest\x1a .presence.v1.GetPresenceResponseBEZCgithub.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/presence/v1b\x06proto3"
+	"\x17PRESENCE_STATUS_OFFLINE\x10\x022\xb1\x04\n" +
+	"\vPresenceApi\x12b\n" +
+	"\vGetPresence\x12(.realchat.presence.v1.GetPresenceRequest\x1a).realchat.presence.v1.GetPresenceResponse\x12n\n" +
+	"\x0fRegisterSession\x12,.realchat.presence.v1.RegisterSessionRequest\x1a-.realchat.presence.v1.RegisterSessionResponse\x12t\n" +
+	"\x11UnregisterSession\x12..realchat.presence.v1.UnregisterSessionRequest\x1a/.realchat.presence.v1.UnregisterSessionResponse\x12k\n" +
+	"\x0eRefreshSession\x12+.realchat.presence.v1.RefreshSessionRequest\x1a,.realchat.presence.v1.RefreshSessionResponse\x12k\n" +
+	"\x0eGetUserDevices\x12+.realchat.presence.v1.GetUserDevicesRequest\x1a,.realchat.presence.v1.GetUserDevicesResponseBPZNgithub.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/presence/v1;presencev1b\x06proto3"
 
 var (
 	file_presence_v1_presence_proto_rawDescOnce sync.Once
@@ -317,24 +756,42 @@ func file_presence_v1_presence_proto_rawDescGZIP() []byte {
 }
 
 var file_presence_v1_presence_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_presence_v1_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_presence_v1_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_presence_v1_presence_proto_goTypes = []any{
-	(PresenceStatus)(0),         // 0: presence.v1.PresenceStatus
-	(*GetPresenceRequest)(nil),  // 1: presence.v1.GetPresenceRequest
-	(*UserPresence)(nil),        // 2: presence.v1.UserPresence
-	(*GetPresenceResponse)(nil), // 3: presence.v1.GetPresenceResponse
-	(*PresenceUpdateEvent)(nil), // 4: presence.v1.PresenceUpdateEvent
+	(PresenceStatus)(0),               // 0: realchat.presence.v1.PresenceStatus
+	(*GetPresenceRequest)(nil),        // 1: realchat.presence.v1.GetPresenceRequest
+	(*UserPresence)(nil),              // 2: realchat.presence.v1.UserPresence
+	(*GetPresenceResponse)(nil),       // 3: realchat.presence.v1.GetPresenceResponse
+	(*RegisterSessionRequest)(nil),    // 4: realchat.presence.v1.RegisterSessionRequest
+	(*RegisterSessionResponse)(nil),   // 5: realchat.presence.v1.RegisterSessionResponse
+	(*UnregisterSessionRequest)(nil),  // 6: realchat.presence.v1.UnregisterSessionRequest
+	(*UnregisterSessionResponse)(nil), // 7: realchat.presence.v1.UnregisterSessionResponse
+	(*RefreshSessionRequest)(nil),     // 8: realchat.presence.v1.RefreshSessionRequest
+	(*RefreshSessionResponse)(nil),    // 9: realchat.presence.v1.RefreshSessionResponse
+	(*GetUserDevicesRequest)(nil),     // 10: realchat.presence.v1.GetUserDevicesRequest
+	(*DeviceInfo)(nil),                // 11: realchat.presence.v1.DeviceInfo
+	(*GetUserDevicesResponse)(nil),    // 12: realchat.presence.v1.GetUserDevicesResponse
+	(*PresenceUpdateEvent)(nil),       // 13: realchat.presence.v1.PresenceUpdateEvent
 }
 var file_presence_v1_presence_proto_depIdxs = []int32{
-	2, // 0: presence.v1.GetPresenceResponse.presences:type_name -> presence.v1.UserPresence
-	0, // 1: presence.v1.PresenceUpdateEvent.status:type_name -> presence.v1.PresenceStatus
-	1, // 2: presence.v1.PresenceApi.GetPresence:input_type -> presence.v1.GetPresenceRequest
-	3, // 3: presence.v1.PresenceApi.GetPresence:output_type -> presence.v1.GetPresenceResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	2,  // 0: realchat.presence.v1.GetPresenceResponse.presences:type_name -> realchat.presence.v1.UserPresence
+	11, // 1: realchat.presence.v1.GetUserDevicesResponse.devices:type_name -> realchat.presence.v1.DeviceInfo
+	0,  // 2: realchat.presence.v1.PresenceUpdateEvent.status:type_name -> realchat.presence.v1.PresenceStatus
+	1,  // 3: realchat.presence.v1.PresenceApi.GetPresence:input_type -> realchat.presence.v1.GetPresenceRequest
+	4,  // 4: realchat.presence.v1.PresenceApi.RegisterSession:input_type -> realchat.presence.v1.RegisterSessionRequest
+	6,  // 5: realchat.presence.v1.PresenceApi.UnregisterSession:input_type -> realchat.presence.v1.UnregisterSessionRequest
+	8,  // 6: realchat.presence.v1.PresenceApi.RefreshSession:input_type -> realchat.presence.v1.RefreshSessionRequest
+	10, // 7: realchat.presence.v1.PresenceApi.GetUserDevices:input_type -> realchat.presence.v1.GetUserDevicesRequest
+	3,  // 8: realchat.presence.v1.PresenceApi.GetPresence:output_type -> realchat.presence.v1.GetPresenceResponse
+	5,  // 9: realchat.presence.v1.PresenceApi.RegisterSession:output_type -> realchat.presence.v1.RegisterSessionResponse
+	7,  // 10: realchat.presence.v1.PresenceApi.UnregisterSession:output_type -> realchat.presence.v1.UnregisterSessionResponse
+	9,  // 11: realchat.presence.v1.PresenceApi.RefreshSession:output_type -> realchat.presence.v1.RefreshSessionResponse
+	12, // 12: realchat.presence.v1.PresenceApi.GetUserDevices:output_type -> realchat.presence.v1.GetUserDevicesResponse
+	8,  // [8:13] is the sub-list for method output_type
+	3,  // [3:8] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_presence_v1_presence_proto_init() }
@@ -348,7 +805,7 @@ func file_presence_v1_presence_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_presence_v1_presence_proto_rawDesc), len(file_presence_v1_presence_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   4,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

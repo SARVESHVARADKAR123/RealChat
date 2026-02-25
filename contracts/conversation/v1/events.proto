@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package realchat.conversation.v1;
+
+import "conversation/v1/conversation.proto";
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/conversation/v1;conversationv1";
+
+message ConversationCreatedEvent {
+  Conversation conversation = 1;
+  repeated string participant_user_ids = 2;
+}
+
+message MembershipChangedEvent {
+  string conversation_id = 1;
+  string user_id = 2;
+  bool added = 3;
+}
+
+message ReadReceiptUpdatedEvent {
+  string conversation_id = 1;
+  string user_id = 2;
+  int64 read_sequence = 3;
+}

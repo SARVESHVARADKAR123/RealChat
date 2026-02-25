@@ -1,7 +1,6 @@
 CREATE TABLE messages (
     id              TEXT PRIMARY KEY,
-    conversation_id TEXT NOT NULL
-        REFERENCES conversations(id) ON DELETE CASCADE,
+    conversation_id TEXT NOT NULL,
 
     sender_id       TEXT NOT NULL,
     sequence        BIGINT NOT NULL,

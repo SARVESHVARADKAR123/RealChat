@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package realchat.conversation.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/conversation/v1;conversationv1";
+
+enum ConversationType {
+  CONVERSATION_TYPE_UNSPECIFIED = 0;
+  DIRECT = 1;
+  GROUP = 2;
+}
+
+enum ParticipantRole {
+  PARTICIPANT_ROLE_UNSPECIFIED = 0;
+  MEMBER = 1;
+  ADMIN = 2;
+}
+
+message Participant {
+  string user_id = 1;
+  ParticipantRole role = 2;
+}
+
+message Conversation {
+  string conversation_id = 1;
+  reserved 2;
+  reserved "is_group";
+  string display_name = 3;
+  string avatar_url = 4;
+  google.protobuf.Timestamp created_at = 5;
+  ConversationType type = 6;
+  repeated string participant_user_ids = 7;
+  repeated Participant participants_with_roles = 8;
+}
+

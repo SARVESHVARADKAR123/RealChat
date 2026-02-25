@@ -59,22 +59,25 @@ func main() {
 	authConn := mustDial(cfg.AuthGRPCAddr)
 	profileConn := mustDial(cfg.ProfileGRPCAddr)
 	msgConn := mustDial(cfg.MessagingGRPCAddr)
-	deliveryConn := mustDial(cfg.DeliveryGRPCAddr)
+	convConn := mustDial(cfg.ConversationGRPCAddr)
+	presenceConn := mustDial(cfg.PresenceGRPCAddr)
 
 	defer authConn.Close()
 	defer profileConn.Close()
 	defer msgConn.Close()
-	defer deliveryConn.Close()
+	defer convConn.Close()
+	defer presenceConn.Close()
 
-	factory := clients.NewFactory(authConn, profileConn, msgConn, deliveryConn)
+	factory := clients.NewFactory(authConn, profileConn, convConn, msgConn, presenceConn)
 
 	authH := handlers.NewAuthHandler(factory.Auth)
 	profileH := handlers.NewProfileHandler(factory.Profile)
-	msgH := handlers.NewMessagingHandler(factory.Messaging)
-	receiptH := handlers.NewReceiptHandler(factory.Messaging)
+	convH := handlers.NewConversationHandler(factory.Conversation, factory.Profile)
+
+	msgH := handlers.NewMessageHandler(factory.Message)
 	presenceH := handlers.NewPresenceHandler(factory.Presence)
 
-	r := router.NewRouter(authH, profileH, msgH, receiptH, presenceH, cfg.JWTSecret, cfg.ServiceName)
+	r := router.NewRouter(authH, profileH, convH, msgH, presenceH, cfg.JWTSecret, cfg.ServiceName)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package profile.v1;
+package realchat.profile.v1;
 
 import "google/protobuf/timestamp.proto";
 
@@ -9,7 +9,17 @@ option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/pro
 service ProfileApi {
   rpc GetProfile(GetProfileRequest) returns (Profile);
   rpc UpdateProfile(UpdateProfileRequest) returns (Profile);
+  rpc BatchGetProfiles(BatchGetProfilesRequest) returns (BatchGetProfilesResponse);
 }
+
+message BatchGetProfilesRequest {
+  repeated string user_ids = 1;
+}
+
+message BatchGetProfilesResponse {
+  repeated Profile profiles = 1;
+}
+
 
 message Profile {
   string user_id = 1;

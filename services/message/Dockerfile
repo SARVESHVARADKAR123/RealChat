@@ -1,35 +1,37 @@
-# Standardized Dockerfile for separated Message Service (CGO Enabled)
+# Standardized Dockerfile for Message Service (CGO Enabled for librdkafka)
 FROM golang:1.25-alpine AS builder
+
+# Install build dependencies for CGO and librdkafka
+RUN apk add --no-cache git build-base librdkafka-dev pkgconf
 
 WORKDIR /app
 
-# Install build dependencies (CGO and librdkafka dependencies)
-RUN apk add --no-cache git build-base
-
-# Copy workspace configuration and only necessary modules
-# Copy workspace configuration and all module definitions
+# Copy workspace configuration and all module definitions for dependency resolution
 COPY go.work go.work.sum ./
 COPY contracts/go.mod contracts/go.sum ./contracts/
 COPY edge/gateway/go.mod edge/gateway/go.sum ./edge/gateway/
 COPY services/auth/go.mod services/auth/go.sum ./services/auth/
+COPY services/conversation/go.mod services/conversation/go.sum ./services/conversation/
 COPY services/delivery/go.mod services/delivery/go.sum ./services/delivery/
 COPY services/message/go.mod services/message/go.sum ./services/message/
+COPY services/presence/go.mod services/presence/go.sum ./services/presence/
 COPY services/profile/go.mod services/profile/go.sum ./services/profile/
 
 # Download dependencies
 RUN go mod download
 
-# Copy source code for the service and its dependencies
+# Copy source code for the service and its internal dependencies
 COPY contracts ./contracts
 COPY services/message ./services/message
 
-# Build binary with CGO and musl for Alpine
+# Build binary with CGO and musl for Alpine compatibility
 RUN CGO_ENABLED=1 GOOS=linux go build -tags musl -o server ./services/message/cmd/server/main.go
 
 # Run Stage
 FROM alpine:3.19
-RUN apk --no-cache add ca-certificates
+# Install librdkafka at runtime
+RUN apk --no-cache add ca-certificates librdkafka
 WORKDIR /app
 COPY --from=builder /app/server .
-EXPOSE 50051
+EXPOSE 50053
 ENTRYPOINT ["./server"]

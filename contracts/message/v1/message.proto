@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package realchat.message.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/message/v1;messagev1";
+
+message Message {
+  string message_id = 1;
+  string conversation_id = 2;
+  string sender_user_id = 3;
+  int64 sequence = 4;
+  string message_type = 5;
+  string content = 6;
+  string metadata_json = 7;
+  google.protobuf.Timestamp sent_at = 8;
+  google.protobuf.Timestamp deleted_at = 9;
+}

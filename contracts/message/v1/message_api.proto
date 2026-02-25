@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package realchat.message.v1;
+
+import "message/v1/message.proto";
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/message/v1;messagev1";
+
+service MessageApi {
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  rpc SyncMessages(SyncMessagesRequest) returns (SyncMessagesResponse);
+}
+
+message SendMessageRequest {
+  string conversation_id = 1;
+  string sender_user_id = 2;
+  string idempotency_key = 3;
+  string message_type = 4;
+  string content = 5;
+  string metadata_json = 6;
+}
+
+message SendMessageResponse {
+  Message message = 1;
+}
+
+message DeleteMessageRequest {
+  string conversation_id = 1;
+  string message_id = 2;
+  string actor_user_id = 3;
+}
+
+message DeleteMessageResponse {}
+
+message SyncMessagesRequest {
+  string conversation_id = 1;
+  int64 after_sequence = 2;
+  int32 page_size = 3;
+}
+
+message SyncMessagesResponse {
+  repeated Message messages = 1;
+}

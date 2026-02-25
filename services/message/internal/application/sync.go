@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 
+	conversationv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/conversation/v1"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/domain"
 )
 
@@ -19,12 +20,22 @@ func (s *Service) SyncMessages(
 	}
 
 	// Verify membership
-	conv, err := s.repo.GetConversation(ctx, nil, conversationID)
+	resp, err := s.convSvc.GetConversation(ctx, &conversationv1.GetConversationRequest{
+		ConversationId: conversationID,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := conv.Participants[userID]; !ok {
+	isParticipant := false
+	for _, pID := range resp.ParticipantUserIds {
+		if pID == userID {
+			isParticipant = true
+			break
+		}
+	}
+
+	if !isParticipant {
 		return nil, domain.ErrNotParticipant
 	}
 

@@ -11,15 +11,19 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 
+	conversationv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/conversation/v1"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/application"
+	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/auth"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/cache"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/config"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/kafka"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/observability"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/outbox"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/repository/postgres"
-	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/transport/grpc"
+	grpc_transport "github.com/SARVESHVARADKAR123/RealChat/services/message/internal/transport/grpc"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/tx"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -70,12 +74,24 @@ func main() {
 	cacheClient := cache.New(cfg.RedisAddr)
 	defer cacheClient.Client.Close()
 
+	// gRPC Client to Conversation Service
+	conn, err := grpc.Dial(
+		cfg.ConversationSvcAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(auth.ClientInterceptor),
+	)
+	if err != nil {
+		log.Fatal("failed to connect to conversation service", zap.Error(err))
+	}
+	defer conn.Close()
+	convSvcClient := conversationv1.NewConversationApiClient(conn)
+
 	repo := &postgres.Repository{
 		DB:    db,
 		Cache: cacheClient,
 	}
 	txMgr := &tx.Manager{DB: db}
-	app := application.New(repo, txMgr)
+	app := application.New(repo, txMgr, convSvcClient, log)
 
 	// Kafka Producer
 	producer, err := kafka.NewProducer(cfg.KafkaBrokers, cfg.KafkaTopic)
@@ -97,7 +113,7 @@ func main() {
 	go worker.Start(ctx)
 
 	// gRPC Server — blocks until SIGINT/SIGTERM
-	server := grpc.New(app)
+	server := grpc_transport.New(app)
 	server.Start(cfg.GRPCAddr)
 
 	// Shutdown: stop outbox worker and flush Kafka producer

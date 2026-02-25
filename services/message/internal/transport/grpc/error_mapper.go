@@ -21,12 +21,10 @@ func MapError(err error) error {
 	}
 
 	switch {
-	case errors.Is(err, domain.ErrConversationNotFound),
-		errors.Is(err, domain.ErrMessageNotFound):
+	case errors.Is(err, domain.ErrMessageNotFound):
 		return status.Error(codes.NotFound, err.Error())
 
-	case errors.Is(err, domain.ErrNotParticipant),
-		errors.Is(err, domain.ErrNotAdmin):
+	case errors.Is(err, domain.ErrNotParticipant):
 		return status.Error(codes.PermissionDenied, err.Error())
 
 	case errors.Is(err, domain.ErrInvalidMessage),
@@ -34,10 +32,6 @@ func MapError(err error) error {
 		errors.Is(err, domain.ErrMessageTooLarge),
 		errors.Is(err, domain.ErrInvalidInput):
 		return status.Error(codes.InvalidArgument, err.Error())
-
-	case errors.Is(err, domain.ErrDirectModification),
-		errors.Is(err, domain.ErrLastAdmin):
-		return status.Error(codes.FailedPrecondition, err.Error())
 
 	default:
 		// Log actual error to help debugging

@@ -31,6 +31,16 @@ func (s *ProfileService) Get(ctx context.Context, id string) (*model.Profile, er
 	return p, nil
 }
 
+// BatchGet returns multiple profiles by user IDs.
+func (s *ProfileService) BatchGet(ctx context.Context, ids []string) ([]*model.Profile, error) {
+	// For simplicity, we skip cache for batch get now, or we could implement it
+	profiles, err := s.Repo.BatchGet(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch fetch profiles: %w", err)
+	}
+	return profiles, nil
+}
+
 // Update modifies a profile, invalidates the cache, and writes an outbox event.
 func (s *ProfileService) Update(ctx context.Context, p *model.Profile) error {
 	if err := s.Repo.Update(ctx, p); err != nil {

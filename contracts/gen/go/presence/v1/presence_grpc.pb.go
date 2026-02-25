@@ -4,7 +4,7 @@
 // - protoc             (unknown)
 // source: presence/v1/presence.proto
 
-package v1
+package presencev1
 
 import (
 	context "context"
@@ -19,7 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PresenceApi_GetPresence_FullMethodName = "/presence.v1.PresenceApi/GetPresence"
+	PresenceApi_GetPresence_FullMethodName       = "/realchat.presence.v1.PresenceApi/GetPresence"
+	PresenceApi_RegisterSession_FullMethodName   = "/realchat.presence.v1.PresenceApi/RegisterSession"
+	PresenceApi_UnregisterSession_FullMethodName = "/realchat.presence.v1.PresenceApi/UnregisterSession"
+	PresenceApi_RefreshSession_FullMethodName    = "/realchat.presence.v1.PresenceApi/RefreshSession"
+	PresenceApi_GetUserDevices_FullMethodName    = "/realchat.presence.v1.PresenceApi/GetUserDevices"
 )
 
 // PresenceApiClient is the client API for PresenceApi service.
@@ -27,6 +31,10 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PresenceApiClient interface {
 	GetPresence(ctx context.Context, in *GetPresenceRequest, opts ...grpc.CallOption) (*GetPresenceResponse, error)
+	RegisterSession(ctx context.Context, in *RegisterSessionRequest, opts ...grpc.CallOption) (*RegisterSessionResponse, error)
+	UnregisterSession(ctx context.Context, in *UnregisterSessionRequest, opts ...grpc.CallOption) (*UnregisterSessionResponse, error)
+	RefreshSession(ctx context.Context, in *RefreshSessionRequest, opts ...grpc.CallOption) (*RefreshSessionResponse, error)
+	GetUserDevices(ctx context.Context, in *GetUserDevicesRequest, opts ...grpc.CallOption) (*GetUserDevicesResponse, error)
 }
 
 type presenceApiClient struct {
@@ -47,11 +55,55 @@ func (c *presenceApiClient) GetPresence(ctx context.Context, in *GetPresenceRequ
 	return out, nil
 }
 
+func (c *presenceApiClient) RegisterSession(ctx context.Context, in *RegisterSessionRequest, opts ...grpc.CallOption) (*RegisterSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RegisterSessionResponse)
+	err := c.cc.Invoke(ctx, PresenceApi_RegisterSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *presenceApiClient) UnregisterSession(ctx context.Context, in *UnregisterSessionRequest, opts ...grpc.CallOption) (*UnregisterSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UnregisterSessionResponse)
+	err := c.cc.Invoke(ctx, PresenceApi_UnregisterSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *presenceApiClient) RefreshSession(ctx context.Context, in *RefreshSessionRequest, opts ...grpc.CallOption) (*RefreshSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefreshSessionResponse)
+	err := c.cc.Invoke(ctx, PresenceApi_RefreshSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *presenceApiClient) GetUserDevices(ctx context.Context, in *GetUserDevicesRequest, opts ...grpc.CallOption) (*GetUserDevicesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserDevicesResponse)
+	err := c.cc.Invoke(ctx, PresenceApi_GetUserDevices_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PresenceApiServer is the server API for PresenceApi service.
 // All implementations must embed UnimplementedPresenceApiServer
 // for forward compatibility.
 type PresenceApiServer interface {
 	GetPresence(context.Context, *GetPresenceRequest) (*GetPresenceResponse, error)
+	RegisterSession(context.Context, *RegisterSessionRequest) (*RegisterSessionResponse, error)
+	UnregisterSession(context.Context, *UnregisterSessionRequest) (*UnregisterSessionResponse, error)
+	RefreshSession(context.Context, *RefreshSessionRequest) (*RefreshSessionResponse, error)
+	GetUserDevices(context.Context, *GetUserDevicesRequest) (*GetUserDevicesResponse, error)
 	mustEmbedUnimplementedPresenceApiServer()
 }
 
@@ -64,6 +116,18 @@ type UnimplementedPresenceApiServer struct{}
 
 func (UnimplementedPresenceApiServer) GetPresence(context.Context, *GetPresenceRequest) (*GetPresenceResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPresence not implemented")
+}
+func (UnimplementedPresenceApiServer) RegisterSession(context.Context, *RegisterSessionRequest) (*RegisterSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RegisterSession not implemented")
+}
+func (UnimplementedPresenceApiServer) UnregisterSession(context.Context, *UnregisterSessionRequest) (*UnregisterSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UnregisterSession not implemented")
+}
+func (UnimplementedPresenceApiServer) RefreshSession(context.Context, *RefreshSessionRequest) (*RefreshSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RefreshSession not implemented")
+}
+func (UnimplementedPresenceApiServer) GetUserDevices(context.Context, *GetUserDevicesRequest) (*GetUserDevicesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserDevices not implemented")
 }
 func (UnimplementedPresenceApiServer) mustEmbedUnimplementedPresenceApiServer() {}
 func (UnimplementedPresenceApiServer) testEmbeddedByValue()                     {}
@@ -104,16 +168,104 @@ func _PresenceApi_GetPresence_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PresenceApi_RegisterSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PresenceApiServer).RegisterSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PresenceApi_RegisterSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PresenceApiServer).RegisterSession(ctx, req.(*RegisterSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PresenceApi_UnregisterSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnregisterSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PresenceApiServer).UnregisterSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PresenceApi_UnregisterSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PresenceApiServer).UnregisterSession(ctx, req.(*UnregisterSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PresenceApi_RefreshSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefreshSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PresenceApiServer).RefreshSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PresenceApi_RefreshSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PresenceApiServer).RefreshSession(ctx, req.(*RefreshSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PresenceApi_GetUserDevices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserDevicesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PresenceApiServer).GetUserDevices(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PresenceApi_GetUserDevices_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PresenceApiServer).GetUserDevices(ctx, req.(*GetUserDevicesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PresenceApi_ServiceDesc is the grpc.ServiceDesc for PresenceApi service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var PresenceApi_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "presence.v1.PresenceApi",
+	ServiceName: "realchat.presence.v1.PresenceApi",
 	HandlerType: (*PresenceApiServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "GetPresence",
 			Handler:    _PresenceApi_GetPresence_Handler,
+		},
+		{
+			MethodName: "RegisterSession",
+			Handler:    _PresenceApi_RegisterSession_Handler,
+		},
+		{
+			MethodName: "UnregisterSession",
+			Handler:    _PresenceApi_UnregisterSession_Handler,
+		},
+		{
+			MethodName: "RefreshSession",
+			Handler:    _PresenceApi_RefreshSession_Handler,
+		},
+		{
+			MethodName: "GetUserDevices",
+			Handler:    _PresenceApi_GetUserDevices_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

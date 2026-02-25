@@ -13,8 +13,8 @@ import (
 func NewRouter(
 	authH *handlers.AuthHandler,
 	profileH *handlers.ProfileHandler,
-	msgH *handlers.MessagingHandler,
-	receiptH *handlers.ReceiptHandler,
+	convH *handlers.ConversationHandler,
+	msgH *handlers.MessageHandler,
 	presenceH *handlers.PresenceHandler,
 	secret string,
 	serviceName string,
@@ -25,9 +25,6 @@ func NewRouter(
 	r.Use(middleware.RequestID)
 	r.Use(observability.MetricsMiddleware(serviceName))
 	r.Use(middleware.Recovery())
-
-	r.Get("/health/live", observability.HealthLiveHandler)
-	r.Get("/health/ready", observability.HealthReadyHandler())
 
 	r.Post("/api/login", authH.Login)
 	r.Post("/api/register", authH.Register)
@@ -40,8 +37,9 @@ func NewRouter(
 		p.Patch(profilePath, profileH.UpdateProfile)
 
 		convPath := "/api/conversations"
-		p.Post(convPath, msgH.CreateConversation)
-		p.Get(convPath, msgH.ListConversations)
+		p.Post(convPath, convH.CreateConversation)
+		p.Get(convPath, convH.ListConversations)
+		p.Get(convPath+"/{id}", convH.GetConversation)
 
 		mesPath := "/api/messages"
 		p.Get(mesPath, msgH.SyncMessages)
@@ -49,11 +47,11 @@ func NewRouter(
 		p.Delete(mesPath, msgH.DeleteMessage)
 
 		partPath := "/api/participants"
-		p.Post(partPath, msgH.AddParticipant)
-		p.Delete(partPath, msgH.RemoveParticipant)
+		p.Post(partPath, convH.AddParticipant)
+		p.Delete(partPath, convH.RemoveParticipant)
 
 		receiptPath := "/api/read-receipt"
-		p.Post(receiptPath, receiptH.ReadReceipt)
+		p.Post(receiptPath, convH.ReadReceipt)
 
 		presencePath := "/api/presence"
 		p.Get(presencePath, presenceH.GetPresence)

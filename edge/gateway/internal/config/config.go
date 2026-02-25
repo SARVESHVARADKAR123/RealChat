@@ -1,34 +1,38 @@
 package config
 
-import "os"
+import (
+	"os"
+)
 
 type Config struct {
-	Port              string
-	JWTSecret         string
-	AuthGRPCAddr      string
-	ProfileGRPCAddr   string
-	MessagingGRPCAddr string
-	DeliveryGRPCAddr  string
-	ServiceName       string
-	MetricsEnabled    bool
-	TracingEnabled    bool
-	JaegerURL         string
-	HTTPAddr          string
+	Port                 string
+	JWTSecret            string
+	AuthGRPCAddr         string
+	ProfileGRPCAddr      string
+	MessagingGRPCAddr    string
+	ConversationGRPCAddr string
+	PresenceGRPCAddr     string
+	ServiceName          string
+	MetricsEnabled       bool
+	TracingEnabled       bool
+	JaegerURL            string
+	HTTPAddr             string
 }
 
 func Load() *Config {
 	return &Config{
-		Port:              mustEnv("PORT"),
-		JWTSecret:         mustEnv("JWT_SECRET"),
-		AuthGRPCAddr:      mustEnv("AUTH_GRPC_ADDR"),
-		ProfileGRPCAddr:   mustEnv("PROFILE_GRPC_ADDR"),
-		MessagingGRPCAddr: mustEnv("MSG_GRPC_ADDR"),
-		DeliveryGRPCAddr:  mustEnv("DELIVERY_GRPC_ADDR"),
-		ServiceName:       mustEnv("SERVICE_NAME"),
-		MetricsEnabled:    getEnvBool("METRICS_ENABLED", false),
-		TracingEnabled:    getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:         mustEnv("JAEGER_URL"),
-		HTTPAddr:          getEnv("HTTP_ADDR", ":8081"),
+		Port:                 mustEnv("PORT"),
+		JWTSecret:            mustEnv("JWT_SECRET"),
+		AuthGRPCAddr:         mustEnv("AUTH_GRPC_ADDR"),
+		ProfileGRPCAddr:      mustEnv("PROFILE_GRPC_ADDR"),
+		MessagingGRPCAddr:    mustEnv("MSG_GRPC_ADDR"),
+		ConversationGRPCAddr: mustEnv("CONV_GRPC_ADDR"),
+		PresenceGRPCAddr:     mustEnv("PRESENCE_GRPC_ADDR"),
+		ServiceName:          mustEnv("SERVICE_NAME"),
+		MetricsEnabled:       getEnvBool("METRICS_ENABLED", false),
+		TracingEnabled:       getEnvBool("TRACING_ENABLED", false),
+		JaegerURL:            mustEnv("JAEGER_URL"),
+		HTTPAddr:             getEnv("HTTP_ADDR", ":8081"),
 	}
 }
 

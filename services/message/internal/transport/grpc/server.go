@@ -10,13 +10,13 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 
-	messagingv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/messaging/v1"
+	messagev1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/message/v1"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/application"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/auth"
 )
 
 type Server struct {
-	messagingv1.UnimplementedMessagingApiServer
+	messagev1.UnimplementedMessageApiServer
 	grpcServer *grpc.Server
 	app        *application.Service
 }
@@ -32,7 +32,7 @@ func New(app *application.Service) *Server {
 		app:        app,
 	}
 
-	messagingv1.RegisterMessagingApiServer(
+	messagev1.RegisterMessageApiServer(
 		grpcServer,
 		s,
 	)

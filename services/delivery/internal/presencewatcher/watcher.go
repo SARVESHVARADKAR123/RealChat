@@ -4,17 +4,19 @@ import (
 	"context"
 	"time"
 
-	messagingv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/messaging/v1"
 	presencev1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/presence/v1"
+	sharedv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/shared/v1"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/membership"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/observability"
-	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/presence"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/websocket"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+// PresenceUpdateChannel is the Redis Pub/Sub channel for presence updates.
+const PresenceUpdateChannel = "presence:updates"
 
 type Watcher struct {
 	client     *redis.Client
@@ -32,7 +34,7 @@ func NewWatcher(client *redis.Client, registry *websocket.Registry, membership *
 
 func (w *Watcher) Start(ctx context.Context) {
 	go func() {
-		pubsub := w.client.Subscribe(ctx, presence.PresenceUpdate)
+		pubsub := w.client.Subscribe(ctx, PresenceUpdateChannel)
 		defer pubsub.Close()
 
 		ch := pubsub.Channel()
@@ -62,9 +64,9 @@ func (w *Watcher) handlePresenceUpdate(ctx context.Context, event *presencev1.Pr
 		return
 	}
 
-	// Wrap in MessagingEventEnvelope
-	env := &messagingv1.MessagingEventEnvelope{
-		EventType:     messagingv1.MessagingEventType_MESSAGING_EVENT_TYPE_PRESENCE_UPDATED,
+	// Wrap in EventEnvelope
+	env := &sharedv1.EventEnvelope{
+		EventType:     sharedv1.EventType_EVENT_TYPE_PRESENCE_UPDATED,
 		SchemaVersion: 1,
 		OccurredAt:    timestamppb.New(time.Unix(event.OccurredAt, 0)),
 		Payload:       eventPayload,

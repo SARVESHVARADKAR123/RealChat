@@ -1,13 +1,11 @@
 CREATE TABLE conversation_sequences (
-    conversation_id TEXT PRIMARY KEY
-        REFERENCES conversations(id) ON DELETE CASCADE,
+    conversation_id TEXT PRIMARY KEY,
 
     next_sequence   BIGINT NOT NULL
 );
 
 CREATE TABLE conversation_participants (
-    conversation_id TEXT NOT NULL
-        REFERENCES conversations(id) ON DELETE CASCADE,
+    conversation_id TEXT NOT NULL,
 
     user_id     TEXT NOT NULL,
     last_read_sequence BIGINT NOT NULL DEFAULT 0,

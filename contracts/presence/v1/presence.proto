@@ -1,11 +1,15 @@
 syntax = "proto3";
 
-package presence.v1;
+package realchat.presence.v1;
 
-option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/presence/v1";
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/presence/v1;presencev1";
 
 service PresenceApi {
     rpc GetPresence(GetPresenceRequest) returns (GetPresenceResponse);
+    rpc RegisterSession(RegisterSessionRequest) returns (RegisterSessionResponse);
+    rpc UnregisterSession(UnregisterSessionRequest) returns (UnregisterSessionResponse);
+    rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);
+    rpc GetUserDevices(GetUserDevicesRequest) returns (GetUserDevicesResponse);
 }
 
 message GetPresenceRequest {
@@ -21,6 +25,45 @@ message UserPresence {
 message GetPresenceResponse {
     repeated UserPresence presences = 1;
 }
+
+// --- Session management messages ---
+
+message RegisterSessionRequest {
+    string user_id = 1;
+    string device_id = 2;
+    string instance_id = 3;
+}
+
+message RegisterSessionResponse {}
+
+message UnregisterSessionRequest {
+    string user_id = 1;
+    string device_id = 2;
+}
+
+message UnregisterSessionResponse {}
+
+message RefreshSessionRequest {
+    string user_id = 1;
+    string device_id = 2;
+}
+
+message RefreshSessionResponse {}
+
+message GetUserDevicesRequest {
+    string user_id = 1;
+}
+
+message DeviceInfo {
+    string device_id = 1;
+    string instance_id = 2;
+}
+
+message GetUserDevicesResponse {
+    repeated DeviceInfo devices = 1;
+}
+
+// --- Enums and Events ---
 
 enum PresenceStatus {
     PRESENCE_STATUS_UNSPECIFIED = 0;

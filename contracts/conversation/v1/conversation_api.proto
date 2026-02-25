@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package realchat.conversation.v1;
+
+import "conversation/v1/conversation.proto";
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/conversation/v1;conversationv1";
+
+service ConversationApi {
+  rpc CreateConversation(CreateConversationRequest) returns (CreateConversationResponse);
+  rpc ListConversations(ListConversationsRequest) returns (ListConversationsResponse);
+  rpc GetConversation(GetConversationRequest) returns (GetConversationResponse);
+  rpc AddParticipant(AddParticipantRequest) returns (AddParticipantResponse);
+  rpc RemoveParticipant(RemoveParticipantRequest) returns (RemoveParticipantResponse);
+  rpc UpdateReadReceipt(UpdateReadReceiptRequest) returns (UpdateReadReceiptResponse);
+  // NextSequence atomically increments and returns the next message sequence
+  // number for a conversation. Called by the message service when sending a message.
+  rpc NextSequence(NextSequenceRequest) returns (NextSequenceResponse);
+}
+
+message CreateConversationRequest {
+  string conversation_id = 1;
+  ConversationType type = 2;
+  string display_name = 3;
+  string avatar_url = 4;
+  repeated string participant_user_ids = 5;
+}
+
+message CreateConversationResponse {
+  Conversation conversation = 1;
+}
+
+message AddParticipantRequest {
+  string conversation_id = 1;
+  string actor_user_id = 2;
+  string target_user_id = 3;
+}
+
+message AddParticipantResponse {}
+
+message RemoveParticipantRequest {
+  string conversation_id = 1;
+  string actor_user_id = 2;
+  string target_user_id = 3;
+}
+
+message RemoveParticipantResponse {}
+
+message UpdateReadReceiptRequest {
+  string conversation_id = 1;
+  string user_id = 2;
+  int64 read_sequence = 3;
+}
+
+message UpdateReadReceiptResponse {}
+
+message ListConversationsRequest {
+  string user_id = 1;
+}
+
+message ListConversationsResponse {
+  repeated Conversation conversations = 1;
+}
+
+message GetConversationRequest {
+  string conversation_id = 1;
+}
+
+message GetConversationResponse {
+  Conversation conversation = 1;
+  repeated string participant_user_ids = 2;
+}
+
+message NextSequenceRequest {
+  string conversation_id = 1;
+}
+
+message NextSequenceResponse {
+  int64 sequence = 1;
+}

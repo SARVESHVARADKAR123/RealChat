@@ -5,30 +5,32 @@ import (
 )
 
 type Config struct {
-	GRPCAddr       string
-	DatabaseURL    string
-	KafkaBrokers   string
-	KafkaTopic     string
-	RedisAddr      string
-	ServiceName    string
-	HTTPAddr       string
-	MetricsEnabled bool
-	TracingEnabled bool
-	JaegerURL      string
+	GRPCAddr            string
+	DatabaseURL         string
+	KafkaBrokers        string
+	KafkaTopic          string
+	RedisAddr           string
+	ServiceName         string
+	HTTPAddr            string
+	MetricsEnabled      bool
+	TracingEnabled      bool
+	JaegerURL           string
+	ConversationSvcAddr string
 }
 
 func Load() *Config {
 	return &Config{
-		GRPCAddr:       mustEnv("GRPC_ADDR"),
-		DatabaseURL:    mustEnv("DATABASE_URL"),
-		KafkaBrokers:   mustEnv("KAFKA_BROKERS"),
-		KafkaTopic:     mustEnv("KAFKA_TOPIC"),
-		RedisAddr:      mustEnv("REDIS_ADDR"),
-		ServiceName:    mustEnv("SERVICE_NAME"),
-		HTTPAddr:       mustEnv("HTTP_ADDR"),
-		MetricsEnabled: getEnvBool("METRICS_ENABLED", false),
-		TracingEnabled: getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:      mustEnv("JAEGER_URL"),
+		GRPCAddr:            mustEnv("GRPC_ADDR"),
+		DatabaseURL:         mustEnv("DATABASE_URL"),
+		KafkaBrokers:        mustEnv("KAFKA_BROKERS"),
+		KafkaTopic:          mustEnv("KAFKA_TOPIC"),
+		RedisAddr:           mustEnv("REDIS_ADDR"),
+		ServiceName:         mustEnv("SERVICE_NAME"),
+		HTTPAddr:            mustEnv("HTTP_ADDR"),
+		MetricsEnabled:      getEnvBool("METRICS_ENABLED", false),
+		TracingEnabled:      getEnvBool("TRACING_ENABLED", false),
+		JaegerURL:           mustEnv("JAEGER_URL"),
+		ConversationSvcAddr: getEnv("CONVERSATION_SVC_ADDR", "localhost:50055"),
 	}
 }
 

@@ -401,7 +401,7 @@ var File_auth_v1_auth_api_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_api_proto_rawDesc = "" +
 	"\n" +
-	"\x16auth/v1/auth_api.proto\x12\aauth.v1\"C\n" +
+	"\x16auth/v1/auth_api.proto\x12\x10realchat.auth.v1\"C\n" +
 	"\x0fRegisterRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"+\n" +
@@ -420,12 +420,12 @@ const file_auth_v1_auth_api_proto_rawDesc = "" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"4\n" +
 	"\rLogoutRequest\x12#\n" +
 	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"\x10\n" +
-	"\x0eLogoutResponse2\xfb\x01\n" +
-	"\aAuthApi\x12?\n" +
-	"\bRegister\x12\x18.auth.v1.RegisterRequest\x1a\x19.auth.v1.RegisterResponse\x126\n" +
-	"\x05Login\x12\x15.auth.v1.LoginRequest\x1a\x16.auth.v1.LoginResponse\x12<\n" +
-	"\aRefresh\x12\x17.auth.v1.RefreshRequest\x1a\x18.auth.v1.RefreshResponse\x129\n" +
-	"\x06Logout\x12\x16.auth.v1.LogoutRequest\x1a\x17.auth.v1.LogoutResponseBHZFgithub.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/auth/v1;authv1b\x06proto3"
+	"\x0eLogoutResponse2\xc3\x02\n" +
+	"\aAuthApi\x12Q\n" +
+	"\bRegister\x12!.realchat.auth.v1.RegisterRequest\x1a\".realchat.auth.v1.RegisterResponse\x12H\n" +
+	"\x05Login\x12\x1e.realchat.auth.v1.LoginRequest\x1a\x1f.realchat.auth.v1.LoginResponse\x12N\n" +
+	"\aRefresh\x12 .realchat.auth.v1.RefreshRequest\x1a!.realchat.auth.v1.RefreshResponse\x12K\n" +
+	"\x06Logout\x12\x1f.realchat.auth.v1.LogoutRequest\x1a .realchat.auth.v1.LogoutResponseBHZFgithub.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_auth_api_proto_rawDescOnce sync.Once
@@ -441,24 +441,24 @@ func file_auth_v1_auth_api_proto_rawDescGZIP() []byte {
 
 var file_auth_v1_auth_api_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_auth_v1_auth_api_proto_goTypes = []any{
-	(*RegisterRequest)(nil),  // 0: auth.v1.RegisterRequest
-	(*RegisterResponse)(nil), // 1: auth.v1.RegisterResponse
-	(*LoginRequest)(nil),     // 2: auth.v1.LoginRequest
-	(*LoginResponse)(nil),    // 3: auth.v1.LoginResponse
-	(*RefreshRequest)(nil),   // 4: auth.v1.RefreshRequest
-	(*RefreshResponse)(nil),  // 5: auth.v1.RefreshResponse
-	(*LogoutRequest)(nil),    // 6: auth.v1.LogoutRequest
-	(*LogoutResponse)(nil),   // 7: auth.v1.LogoutResponse
+	(*RegisterRequest)(nil),  // 0: realchat.auth.v1.RegisterRequest
+	(*RegisterResponse)(nil), // 1: realchat.auth.v1.RegisterResponse
+	(*LoginRequest)(nil),     // 2: realchat.auth.v1.LoginRequest
+	(*LoginResponse)(nil),    // 3: realchat.auth.v1.LoginResponse
+	(*RefreshRequest)(nil),   // 4: realchat.auth.v1.RefreshRequest
+	(*RefreshResponse)(nil),  // 5: realchat.auth.v1.RefreshResponse
+	(*LogoutRequest)(nil),    // 6: realchat.auth.v1.LogoutRequest
+	(*LogoutResponse)(nil),   // 7: realchat.auth.v1.LogoutResponse
 }
 var file_auth_v1_auth_api_proto_depIdxs = []int32{
-	0, // 0: auth.v1.AuthApi.Register:input_type -> auth.v1.RegisterRequest
-	2, // 1: auth.v1.AuthApi.Login:input_type -> auth.v1.LoginRequest
-	4, // 2: auth.v1.AuthApi.Refresh:input_type -> auth.v1.RefreshRequest
-	6, // 3: auth.v1.AuthApi.Logout:input_type -> auth.v1.LogoutRequest
-	1, // 4: auth.v1.AuthApi.Register:output_type -> auth.v1.RegisterResponse
-	3, // 5: auth.v1.AuthApi.Login:output_type -> auth.v1.LoginResponse
-	5, // 6: auth.v1.AuthApi.Refresh:output_type -> auth.v1.RefreshResponse
-	7, // 7: auth.v1.AuthApi.Logout:output_type -> auth.v1.LogoutResponse
+	0, // 0: realchat.auth.v1.AuthApi.Register:input_type -> realchat.auth.v1.RegisterRequest
+	2, // 1: realchat.auth.v1.AuthApi.Login:input_type -> realchat.auth.v1.LoginRequest
+	4, // 2: realchat.auth.v1.AuthApi.Refresh:input_type -> realchat.auth.v1.RefreshRequest
+	6, // 3: realchat.auth.v1.AuthApi.Logout:input_type -> realchat.auth.v1.LogoutRequest
+	1, // 4: realchat.auth.v1.AuthApi.Register:output_type -> realchat.auth.v1.RegisterResponse
+	3, // 5: realchat.auth.v1.AuthApi.Login:output_type -> realchat.auth.v1.LoginResponse
+	5, // 6: realchat.auth.v1.AuthApi.Refresh:output_type -> realchat.auth.v1.RefreshResponse
+	7, // 7: realchat.auth.v1.AuthApi.Logout:output_type -> realchat.auth.v1.LogoutResponse
 	4, // [4:8] is the sub-list for method output_type
 	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	messagingv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/messaging/v1"
+	conversationv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/conversation/v1"
+	messagev1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/message/v1"
+	presencev1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/presence/v1"
+	sharedv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/shared/v1"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/observability"
-	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/presence"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
@@ -17,20 +19,24 @@ import (
 )
 
 type Handler struct {
-	registry        *Registry
-	presence        *presence.Presence
-	messagingClient messagingv1.MessagingApiClient
+	registry       *Registry
+	presenceClient presencev1.PresenceApiClient
+	convClient     conversationv1.ConversationApiClient
+	msgClient      messagev1.MessageApiClient
+	instanceID     string
 }
 
 type ResumeRequest struct {
 	LastSequences map[string]int64 `json:"last_sequences"`
 }
 
-func NewHandler(registry *Registry, p *presence.Presence, mc messagingv1.MessagingApiClient) *Handler {
+func NewHandler(registry *Registry, pc presencev1.PresenceApiClient, cc conversationv1.ConversationApiClient, mc messagev1.MessageApiClient, instanceID string) *Handler {
 	return &Handler{
-		registry:        registry,
-		presence:        p,
-		messagingClient: mc,
+		registry:       registry,
+		presenceClient: pc,
+		convClient:     cc,
+		msgClient:      mc,
+		instanceID:     instanceID,
 	}
 }
 
@@ -60,20 +66,21 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Register session but it's not ready yet
 	h.registry.Add(session)
 
-	// Update presence and start heartbeat
+	// Update presence via gRPC
 	ctx := context.Background()
-	if err := h.presence.Register(ctx, userID, deviceID); err != nil {
+	if _, err := h.presenceClient.RegisterSession(ctx, &presencev1.RegisterSessionRequest{
+		UserId:     userID,
+		DeviceId:   deviceID,
+		InstanceId: h.instanceID,
+	}); err != nil {
 		log.Error("error setting presence online", zap.Error(err))
 	}
 
-	StartHeartbeat(h.presence, userID, deviceID, session.Done())
+	StartHeartbeat(h.presenceClient, userID, deviceID, session.Done())
 
 	session.Start()
 	log.Info("connected", zap.String("user_id", userID), zap.String("device_id", deviceID))
 	observability.WebSocketConnectionsTotal.WithLabelValues("delivery").Inc()
-
-	// handleResume must be called sequentially or before readLoop to avoid concurrent readers
-	h.handleResume(session)
 
 	// Set read deadline and pong handler
 	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -90,12 +97,19 @@ func (h *Handler) readLoop(s *Session) {
 		h.registry.Remove(s)
 		s.Close()
 		log := observability.GetLogger(context.Background())
-		if err := h.presence.Unregister(context.Background(), s.UserID, s.DeviceID); err != nil {
+		if _, err := h.presenceClient.UnregisterSession(context.Background(), &presencev1.UnregisterSessionRequest{
+			UserId:   s.UserID,
+			DeviceId: s.DeviceID,
+		}); err != nil {
 			log.Error("presence: fail to unregister", zap.String("user_id", s.UserID), zap.String("device_id", s.DeviceID), zap.Error(err))
 		}
 		log.Info("disconnected", zap.String("user_id", s.UserID), zap.String("device_id", s.DeviceID))
 		observability.WebSocketConnectionsTotal.WithLabelValues("delivery").Dec()
 	}()
+
+	// The first message MUST be the resume request (JSON)
+	// handleResume handles reading this message and syncing history
+	h.handleResume(s)
 
 	for {
 		if _, _, err := s.Conn.ReadMessage(); err != nil {
@@ -123,7 +137,7 @@ func (h *Handler) handleResume(s *Session) {
 
 	// 1. Fetch all conversations for the user to discover new ones
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "x-user-id", s.UserID)
-	listResp, err := h.messagingClient.ListConversations(ctx, &messagingv1.ListConversationsRequest{
+	listResp, err := h.convClient.ListConversations(ctx, &conversationv1.ListConversationsRequest{
 		UserId: s.UserID,
 	})
 	if err != nil {
@@ -157,9 +171,9 @@ func (h *Handler) handleResume(s *Session) {
 func (h *Handler) syncConversation(ctx context.Context, s *Session, convID string, lastSeq int64) {
 	currentSeq := lastSeq
 	for {
-		resp, err := h.messagingClient.SyncMessages(
+		resp, err := h.msgClient.SyncMessages(
 			ctx,
-			&messagingv1.SyncMessagesRequest{
+			&messagev1.SyncMessagesRequest{
 				ConversationId: convID,
 				AfterSequence:  currentSeq,
 				PageSize:       100,
@@ -188,9 +202,9 @@ func (h *Handler) syncConversation(ctx context.Context, s *Session, convID strin
 	}
 }
 
-func (h *Handler) sendMsgAsEvent(s *Session, m *messagingv1.Message) {
+func (h *Handler) sendMsgAsEvent(s *Session, m *messagev1.Message) {
 	// Wrap in MessageSentEvent
-	event := &messagingv1.MessageSentEvent{
+	event := &messagev1.MessageSentEvent{
 		Message: m,
 	}
 	eventPayload, err := proto.Marshal(event)
@@ -199,9 +213,9 @@ func (h *Handler) sendMsgAsEvent(s *Session, m *messagingv1.Message) {
 		return
 	}
 
-	// Wrap in MessagingEventEnvelope
-	env := &messagingv1.MessagingEventEnvelope{
-		EventType:     messagingv1.MessagingEventType_MESSAGING_EVENT_TYPE_MESSAGE_SENT,
+	// Wrap in EventEnvelope
+	env := &sharedv1.EventEnvelope{
+		EventType:     sharedv1.EventType_EVENT_TYPE_MESSAGE_SENT,
 		SchemaVersion: 1,
 		OccurredAt:    m.SentAt,
 		Payload:       eventPayload,

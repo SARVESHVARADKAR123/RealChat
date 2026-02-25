@@ -7,7 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	messagingv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/messaging/v1"
+	messagev1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/message/v1"
+	sharedv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/shared/v1"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 )
@@ -35,7 +36,7 @@ type Session struct {
 }
 
 type bufferedEvent struct {
-	env     *messagingv1.MessagingEventEnvelope
+	env     *sharedv1.EventEnvelope
 	payload []byte
 }
 
@@ -66,7 +67,7 @@ func (s *Session) IsReady() bool {
 	return s.ready.Load()
 }
 
-func (s *Session) Buffer(env *messagingv1.MessagingEventEnvelope, payload []byte) bool {
+func (s *Session) Buffer(env *sharedv1.EventEnvelope, payload []byte) bool {
 	s.resumeMu.Lock()
 	defer s.resumeMu.Unlock()
 
@@ -117,12 +118,12 @@ func (s *Session) FlushBufferSorted() {
 	s.resumeBuffer = nil
 }
 
-func getSequence(env *messagingv1.MessagingEventEnvelope) int64 {
-	if env.GetEventType() != messagingv1.MessagingEventType_MESSAGING_EVENT_TYPE_MESSAGE_SENT {
+func getSequence(env *sharedv1.EventEnvelope) int64 {
+	if env.GetEventType() != sharedv1.EventType_EVENT_TYPE_MESSAGE_SENT {
 		return 0
 	}
 
-	var event messagingv1.MessageSentEvent
+	var event messagev1.MessageSentEvent
 	if err := proto.Unmarshal(env.GetPayload(), &event); err != nil {
 		return 0
 	}

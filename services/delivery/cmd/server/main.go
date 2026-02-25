@@ -8,14 +8,11 @@ import (
 	"syscall"
 	"time"
 
-	"net"
-
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/config"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/dispatcher"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/kafka"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/membership"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/observability"
-	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/presence"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/presencewatcher"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/router"
 	"github.com/SARVESHVARADKAR123/RealChat/services/delivery/internal/server"
@@ -28,7 +25,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	messagingv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/messaging/v1"
+	conversationv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/conversation/v1"
+	messagev1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/message/v1"
 	presencev1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/presence/v1"
 )
 
@@ -54,19 +52,24 @@ func main() {
 
 	redisClient := initRedis(ctx, cfg.RedisAddr, log)
 	rtr := router.New(redisClient, instanceID)
-	pres := presence.New(cfg.RedisAddr, instanceID)
 	reg := websocket.NewRegistry()
 	memCache := membership.New()
 
-	messagingClient, messagingConn := initMessagingClient(cfg.MessagingSvcAddr, log)
-	defer messagingConn.Close()
+	convClient, convConn := initConversationClient(cfg.ConversationSvcAddr, log)
+	defer convConn.Close()
 
-	disp := dispatcher.New(reg, memCache, pres, rtr, instanceID, messagingClient)
+	msgClient, msgConn := initMessageClient(cfg.MessagingSvcAddr, log)
+	defer msgConn.Close()
+
+	presenceClient, presenceConn := initPresenceClient(cfg.PresenceSvcAddr, log)
+	defer presenceConn.Close()
+
+	disp := dispatcher.New(reg, memCache, presenceClient, rtr, instanceID, convClient)
 	pw := presencewatcher.NewWatcher(redisClient, reg, memCache)
 	pw.Start(ctx)
 
 	rtr.Subscribe(ctx, disp.DeliverRemote)
-	wsHandler := websocket.NewHandler(reg, pres, messagingClient)
+	wsHandler := websocket.NewHandler(reg, presenceClient, convClient, msgClient, instanceID)
 
 	// Kafka Consumer
 	consumer := initKafka(ctx, cfg, disp, log)
@@ -75,12 +78,11 @@ func main() {
 	// Servers
 	obsSrv := initObservabilityServer(cfg, log)
 	wsSrv := server.New(":"+cfg.HTTPPort, initMainRouter(wsHandler))
-	grpcSrv := initPresenceGRPC(cfg, pres, log)
 
 	startServers(cfg, obsSrv, wsSrv, log)
 
 	<-ctx.Done()
-	performGracefulShutdown(obsSrv, wsSrv, grpcSrv, reg, log)
+	performGracefulShutdown(obsSrv, wsSrv, reg, log)
 }
 
 func setupSignalHandler(log *zap.Logger) (context.Context, context.CancelFunc) {
@@ -110,12 +112,28 @@ func initRedis(ctx context.Context, addr string, log *zap.Logger) *redis.Client 
 	return client
 }
 
-func initMessagingClient(addr string, log *zap.Logger) (messagingv1.MessagingApiClient, *grpc.ClientConn) {
+func initConversationClient(addr string, log *zap.Logger) (conversationv1.ConversationApiClient, *grpc.ClientConn) {
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatal("failed to connect to messaging service", zap.Error(err))
+		log.Fatal("failed to connect to conversation service", zap.Error(err))
 	}
-	return messagingv1.NewMessagingApiClient(conn), conn
+	return conversationv1.NewConversationApiClient(conn), conn
+}
+
+func initMessageClient(addr string, log *zap.Logger) (messagev1.MessageApiClient, *grpc.ClientConn) {
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatal("failed to connect to message service", zap.Error(err))
+	}
+	return messagev1.NewMessageApiClient(conn), conn
+}
+
+func initPresenceClient(addr string, log *zap.Logger) (presencev1.PresenceApiClient, *grpc.ClientConn) {
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatal("failed to connect to presence service", zap.Error(err))
+	}
+	return presencev1.NewPresenceApiClient(conn), conn
 }
 
 func initKafka(ctx context.Context, cfg *config.Config, disp *dispatcher.Dispatcher, log *zap.Logger) *kafka.Consumer {
@@ -142,22 +160,6 @@ func initMainRouter(wsHandler *websocket.Handler) http.Handler {
 	return mux
 }
 
-func initPresenceGRPC(cfg *config.Config, pres *presence.Presence, log *zap.Logger) *grpc.Server {
-	srv := grpc.NewServer()
-	presencev1.RegisterPresenceApiServer(srv, presence.NewGRPCHandler(pres))
-	go func() {
-		log.Info("starting presence grpc server", zap.String("addr", cfg.GRPCAddr))
-		lis, err := net.Listen("tcp", cfg.GRPCAddr)
-		if err != nil {
-			log.Fatal("failed to listen for grpc", zap.Error(err))
-		}
-		if err := srv.Serve(lis); err != nil {
-			log.Error("presence grpc server error", zap.Error(err))
-		}
-	}()
-	return srv
-}
-
 func startServers(cfg *config.Config, obsSrv *http.Server, wsSrv *server.Server, log *zap.Logger) {
 	go func() {
 		log.Info("starting observability server", zap.String("addr", cfg.HTTPAddr))
@@ -173,7 +175,7 @@ func startServers(cfg *config.Config, obsSrv *http.Server, wsSrv *server.Server,
 	}()
 }
 
-func performGracefulShutdown(obs *http.Server, ws *server.Server, grpcSrv *grpc.Server, reg *websocket.Registry, log *zap.Logger) {
+func performGracefulShutdown(obs *http.Server, ws *server.Server, reg *websocket.Registry, log *zap.Logger) {
 	log.Info("shutting down...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -184,7 +186,6 @@ func performGracefulShutdown(obs *http.Server, ws *server.Server, grpcSrv *grpc.
 	if err := obs.Shutdown(ctx); err != nil {
 		log.Error("error during observability server shutdown", zap.Error(err))
 	}
-	grpcSrv.GracefulStop()
 	reg.CloseAll()
 	log.Info("shutdown complete, exiting")
 }

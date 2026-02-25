@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 
-	messagingv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/messaging/v1"
+	conversationv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/conversation/v1"
+	messagev1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/message/v1"
+	sharedv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/shared/v1"
 	"github.com/SARVESHVARADKAR123/RealChat/services/message/internal/domain"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -38,7 +40,25 @@ func (s *Service) DeleteMessage(
 		}
 
 		if msg.SenderID != cmd.RequesterID {
-			return domain.ErrNotParticipant
+			// If not sender, check if requester is an admin
+			convResp, err := s.convSvc.GetConversation(ctx, &conversationv1.GetConversationRequest{
+				ConversationId: cmd.ConversationID,
+			})
+			if err != nil {
+				return err
+			}
+
+			isAdmin := false
+			for _, p := range convResp.Conversation.ParticipantsWithRoles {
+				if p.UserId == cmd.RequesterID && p.Role == conversationv1.ParticipantRole_ADMIN {
+					isAdmin = true
+					break
+				}
+			}
+
+			if !isAdmin {
+				return domain.ErrNotParticipant
+			}
 		}
 
 		// Already deleted? idempotent no-op
@@ -56,7 +76,7 @@ func (s *Service) DeleteMessage(
 		}
 
 		// 3️⃣ Emit outbox event
-		event := &messagingv1.MessageDeletedEvent{
+		event := &messagev1.MessageDeletedEvent{
 			ConversationId: cmd.ConversationID,
 			MessageId:      cmd.MessageID,
 		}
@@ -65,8 +85,8 @@ func (s *Service) DeleteMessage(
 			return err
 		}
 
-		env := &messagingv1.MessagingEventEnvelope{
-			EventType:     messagingv1.MessagingEventType_MESSAGING_EVENT_TYPE_MESSAGE_DELETED,
+		env := &sharedv1.EventEnvelope{
+			EventType:     sharedv1.EventType_EVENT_TYPE_MESSAGE_DELETED,
 			SchemaVersion: 1,
 			OccurredAt:    timestamppb.Now(),
 			Payload:       eventPayload,

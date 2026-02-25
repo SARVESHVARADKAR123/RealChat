@@ -19,10 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AuthApi_Register_FullMethodName = "/auth.v1.AuthApi/Register"
-	AuthApi_Login_FullMethodName    = "/auth.v1.AuthApi/Login"
-	AuthApi_Refresh_FullMethodName  = "/auth.v1.AuthApi/Refresh"
-	AuthApi_Logout_FullMethodName   = "/auth.v1.AuthApi/Logout"
+	AuthApi_Register_FullMethodName = "/realchat.auth.v1.AuthApi/Register"
+	AuthApi_Login_FullMethodName    = "/realchat.auth.v1.AuthApi/Login"
+	AuthApi_Refresh_FullMethodName  = "/realchat.auth.v1.AuthApi/Refresh"
+	AuthApi_Logout_FullMethodName   = "/realchat.auth.v1.AuthApi/Logout"
 )
 
 // AuthApiClient is the client API for AuthApi service.
@@ -210,7 +210,7 @@ func _AuthApi_Logout_Handler(srv interface{}, ctx context.Context, dec func(inte
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var AuthApi_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "auth.v1.AuthApi",
+	ServiceName: "realchat.auth.v1.AuthApi",
 	HandlerType: (*AuthApiServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

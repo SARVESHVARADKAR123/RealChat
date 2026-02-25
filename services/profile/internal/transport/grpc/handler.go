@@ -41,6 +41,7 @@ func (h *Handler) UpdateProfile(ctx context.Context, req *profilev1.UpdateProfil
 	if req.AvatarUrl != nil {
 		p.AvatarURL = *req.AvatarUrl
 	}
+
 	if req.Bio != nil {
 		p.Bio = *req.Bio
 	}
@@ -50,6 +51,22 @@ func (h *Handler) UpdateProfile(ctx context.Context, req *profilev1.UpdateProfil
 	}
 
 	return toProto(p), nil
+}
+
+func (h *Handler) BatchGetProfiles(ctx context.Context, req *profilev1.BatchGetProfilesRequest) (*profilev1.BatchGetProfilesResponse, error) {
+	profiles, err := h.svc.BatchGet(ctx, req.UserIds)
+	if err != nil {
+		return nil, MapError(err)
+	}
+
+	pbProfiles := make([]*profilev1.Profile, 0, len(profiles))
+	for _, p := range profiles {
+		pbProfiles = append(pbProfiles, toProto(p))
+	}
+
+	return &profilev1.BatchGetProfilesResponse{
+		Profiles: pbProfiles,
+	}, nil
 }
 
 func toProto(p *model.Profile) *profilev1.Profile {

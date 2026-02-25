@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package realchat.message.v1;
+
+import "message/v1/message.proto";
+
+option go_package = "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/message/v1;messagev1";
+
+message MessageSentEvent {
+  Message message = 1;
+}
+
+message MessageDeletedEvent {
+  string conversation_id = 1;
+  string message_id = 2;
+}
+

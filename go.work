@@ -4,7 +4,9 @@ use (
 	./contracts
 	./edge/gateway
 	./services/auth
+	./services/conversation
 	./services/delivery
 	./services/message
+	./services/presence
 	./services/profile
 )

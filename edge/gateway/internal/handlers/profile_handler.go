@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -21,10 +21,11 @@ func NewProfileHandler(c profilev1.ProfileApiClient) *ProfileHandler {
 
 func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserID(r.Context())
-	log.Printf("Gateway GetProfile: userID=%s", userID)
+	reqID := middleware.RequestIDFromContext(r.Context())
 
 	ctx, cancel := transport.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
+	ctx = transport.WithMeta(ctx, userID, reqID)
 
 	resp, err := h.client.GetProfile(ctx, &profilev1.GetProfileRequest{
 		UserId: userID,
@@ -39,6 +40,7 @@ func (h *ProfileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 
 func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserID(r.Context())
+	reqID := middleware.RequestIDFromContext(r.Context())
 
 	var req struct {
 		DisplayName *string `json:"display_name"`
@@ -47,12 +49,15 @@ func (h *ProfileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		transport.WriteJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		transport.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
 		return
 	}
 
 	ctx, cancel := transport.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
+	ctx = transport.WithMeta(ctx, userID, reqID)
+
+	slog.Debug("profile update requested", "user_id", userID, "req_id", reqID)
 
 	resp, err := h.client.UpdateProfile(ctx, &profilev1.UpdateProfileRequest{
 		UserId:      userID,

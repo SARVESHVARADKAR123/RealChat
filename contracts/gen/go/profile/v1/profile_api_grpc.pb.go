@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ProfileApi_GetProfile_FullMethodName    = "/profile.v1.ProfileApi/GetProfile"
-	ProfileApi_UpdateProfile_FullMethodName = "/profile.v1.ProfileApi/UpdateProfile"
+	ProfileApi_GetProfile_FullMethodName       = "/realchat.profile.v1.ProfileApi/GetProfile"
+	ProfileApi_UpdateProfile_FullMethodName    = "/realchat.profile.v1.ProfileApi/UpdateProfile"
+	ProfileApi_BatchGetProfiles_FullMethodName = "/realchat.profile.v1.ProfileApi/BatchGetProfiles"
 )
 
 // ProfileApiClient is the client API for ProfileApi service.
@@ -29,6 +30,7 @@ const (
 type ProfileApiClient interface {
 	GetProfile(ctx context.Context, in *GetProfileRequest, opts ...grpc.CallOption) (*Profile, error)
 	UpdateProfile(ctx context.Context, in *UpdateProfileRequest, opts ...grpc.CallOption) (*Profile, error)
+	BatchGetProfiles(ctx context.Context, in *BatchGetProfilesRequest, opts ...grpc.CallOption) (*BatchGetProfilesResponse, error)
 }
 
 type profileApiClient struct {
@@ -59,12 +61,23 @@ func (c *profileApiClient) UpdateProfile(ctx context.Context, in *UpdateProfileR
 	return out, nil
 }
 
+func (c *profileApiClient) BatchGetProfiles(ctx context.Context, in *BatchGetProfilesRequest, opts ...grpc.CallOption) (*BatchGetProfilesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BatchGetProfilesResponse)
+	err := c.cc.Invoke(ctx, ProfileApi_BatchGetProfiles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProfileApiServer is the server API for ProfileApi service.
 // All implementations must embed UnimplementedProfileApiServer
 // for forward compatibility.
 type ProfileApiServer interface {
 	GetProfile(context.Context, *GetProfileRequest) (*Profile, error)
 	UpdateProfile(context.Context, *UpdateProfileRequest) (*Profile, error)
+	BatchGetProfiles(context.Context, *BatchGetProfilesRequest) (*BatchGetProfilesResponse, error)
 	mustEmbedUnimplementedProfileApiServer()
 }
 
@@ -80,6 +93,9 @@ func (UnimplementedProfileApiServer) GetProfile(context.Context, *GetProfileRequ
 }
 func (UnimplementedProfileApiServer) UpdateProfile(context.Context, *UpdateProfileRequest) (*Profile, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateProfile not implemented")
+}
+func (UnimplementedProfileApiServer) BatchGetProfiles(context.Context, *BatchGetProfilesRequest) (*BatchGetProfilesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BatchGetProfiles not implemented")
 }
 func (UnimplementedProfileApiServer) mustEmbedUnimplementedProfileApiServer() {}
 func (UnimplementedProfileApiServer) testEmbeddedByValue()                    {}
@@ -138,11 +154,29 @@ func _ProfileApi_UpdateProfile_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProfileApi_BatchGetProfiles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BatchGetProfilesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProfileApiServer).BatchGetProfiles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProfileApi_BatchGetProfiles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProfileApiServer).BatchGetProfiles(ctx, req.(*BatchGetProfilesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProfileApi_ServiceDesc is the grpc.ServiceDesc for ProfileApi service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ProfileApi_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "profile.v1.ProfileApi",
+	ServiceName: "realchat.profile.v1.ProfileApi",
 	HandlerType: (*ProfileApiServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -152,6 +186,10 @@ var ProfileApi_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateProfile",
 			Handler:    _ProfileApi_UpdateProfile_Handler,
+		},
+		{
+			MethodName: "BatchGetProfiles",
+			Handler:    _ProfileApi_BatchGetProfiles_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
