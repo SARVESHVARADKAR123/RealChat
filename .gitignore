@@ -1,1 +1,36 @@
-infra/postgres/data
+# Binaries and executables
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+server
+
+# Go
+go.work.sum
+vendor/
+*.test
+*.prof
+
+# Docker & Infrastructure
+infra/postgres/data/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# OS / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+dist/
+tmp/
+.gemini/
