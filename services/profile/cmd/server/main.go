@@ -41,31 +41,28 @@ func main() {
 		}()
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Database
+	db, err := repository.NewDB(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal("db open failed", zap.Error(err))
+	}
+
 	// HTTP Server for Observability (Metrics & Health)
 	obsMux := chi.NewRouter()
 	obsMux.Use(observability.MetricsMiddleware(cfg.ServiceName))
 	obsMux.Handle("/metrics", promhttp.Handler())
 	obsMux.Get("/health/live", observability.HealthLiveHandler)
-	// We'll set ready handler later after DB is init
+	obsMux.Get("/health/ready", observability.HealthReadyHandler(db))
 
 	go func() {
-		log.Info("HTTP observability server started", zap.String("addr", cfg.HTTPAddr))
-		if err := http.ListenAndServe(cfg.HTTPAddr, obsMux); err != nil {
+		log.Info("HTTP observability server started", zap.String("addr", cfg.ObsHTTPAddr))
+		if err := http.ListenAndServe(cfg.ObsHTTPAddr, obsMux); err != nil && err != http.ErrServerClosed {
 			log.Error("HTTP observability server failed", zap.Error(err))
 		}
 	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Database
-	db, err := repository.NewDB(ctx, cfg.DATABASE_URL)
-	if err != nil {
-		log.Fatal("db open failed", zap.Error(err))
-	}
-
-	// Update observability health with live DB
-	obsMux.Get("/health/ready", observability.HealthReadyHandler(db))
 
 	// Redis
 	rdb := cache.New(cfg.RedisAddr)
@@ -105,7 +102,7 @@ func main() {
 
 	// HTTP server
 	mux := handler.NewRouter(cfg, profileSvc, contactSvc, blockSvc, db)
-	srv := &http.Server{Addr: ":" + cfg.HTTPPort, Handler: mux}
+	srv := &http.Server{Addr: cfg.HTTPPort, Handler: mux}
 
 	// gRPC server
 	grpcSrv := grpc.NewServer(profileSvc)
@@ -118,8 +115,8 @@ func main() {
 	}()
 
 	go func() {
-		if err := grpcSrv.Start(cfg.GRPC_ADDR); err != nil {
-			log.Fatal("gRPC server error", zap.String("addr", cfg.GRPC_ADDR), zap.Error(err))
+		if err := grpcSrv.Start(cfg.GRPCAddr); err != nil {
+			log.Fatal("gRPC server error", zap.String("addr", cfg.GRPCAddr), zap.Error(err))
 		}
 	}()
 
@@ -134,7 +131,10 @@ func main() {
 	ctxShut, shutCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutCancel()
 
+	// Shut down HTTP server first if possible or just log error if we don't have the handle
+	// In the previous code srv was defined later. Let's make sure we handle it.
 	_ = srv.Shutdown(ctxShut)
 	grpcSrv.Stop()
+	db.Close()
 	log.Info("profile stopped")
 }

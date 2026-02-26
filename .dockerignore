@@ -6,3 +6,5 @@ node_modules
 .env
 Dockerfile
 docker-compose.yml
+infra/data/
+**/data/

@@ -10,7 +10,7 @@ import (
 
 type Config struct {
 	// ───── Infrastructure ─────
-	DBURL        string
+	DatabaseURL  string
 	RedisAddr    string
 	KafkaBrokers []string
 
@@ -42,34 +42,41 @@ type Config struct {
 func Load() Config {
 	return Config{
 		// Infra
-		DBURL:        mustEnv("DATABASE_URL"),
+		DatabaseURL:  mustEnv("DATABASE_URL"),
 		RedisAddr:    mustEnv("REDIS_ADDR"),
 		KafkaBrokers: getEnvSlice("KAFKA_BROKERS", nil),
 
 		// Runtime
-		HTTPAddr:    mustEnv("HTTP_ADDR"),
-		GRPCAddr:    mustEnv("GRPC_ADDR"),
-		ObsHTTPAddr: mustEnv("OBS_HTTP_ADDR"),
-		ServiceName: mustEnv("SERVICE_NAME"),
-		LogLevel:    mustEnv("LOG_LEVEL"),
+		HTTPAddr:    fixPort(getEnv("HTTP_ADDR", ":8081")),
+		GRPCAddr:    fixPort(getEnv("GRPC_ADDR", ":50051")),
+		ObsHTTPAddr: fixPort(getEnv("OBS_HTTP_ADDR", ":8091")),
+		ServiceName: getEnv("SERVICE_NAME", "auth-service"),
+		LogLevel:    getEnv("LOG_LEVEL", "info"),
 
 		// JWT
 		JWTSecret:   mustEnv("JWT_SECRET"),
-		JWTIssuer:   mustEnv("JWT_ISSUER"),
-		JWTAudience: mustEnv("JWT_AUDIENCE"),
+		JWTIssuer:   getEnv("JWT_ISSUER", "realchat-auth"),
+		JWTAudience: getEnv("JWT_AUDIENCE", "realchat-clients"),
 
-		AccessTokenTTL:  time.Duration(getEnvInt("ACCESS_TTL_MIN", 0)) * time.Minute,
-		RefreshTokenTTL: time.Duration(getEnvInt("REFRESH_TTL_HOURS", 0)) * time.Hour,
+		AccessTokenTTL:  time.Duration(getEnvInt("ACCESS_TTL_MIN", 60)) * time.Minute,
+		RefreshTokenTTL: time.Duration(getEnvInt("REFRESH_TTL_HOURS", 24)) * time.Hour,
 
 		// Rate limiting
-		LoginRateLimitPerMin:   getEnvInt("LOGIN_RATE_LIMIT", 0),
-		RefreshRateLimitPerMin: getEnvInt("REFRESH_RATE_LIMIT", 0),
+		LoginRateLimitPerMin:   getEnvInt("LOGIN_RATE_LIMIT", 10),
+		RefreshRateLimitPerMin: getEnvInt("REFRESH_RATE_LIMIT", 20),
 
 		// Observability
 		MetricsEnabled: getEnvBool("METRICS_ENABLED", false),
 		TracingEnabled: getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:      mustEnv("JAEGER_URL"),
+		JaegerURL:      getEnv("JAEGER_URL", "http://jaeger:14268/api/traces"),
 	}
+}
+
+func fixPort(port string) string {
+	if port != "" && !strings.Contains(port, ":") {
+		return ":" + port
+	}
+	return port
 }
 
 func mustEnv(k string) string {

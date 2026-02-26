@@ -1,7 +1,9 @@
 package config
 
 import (
+	"log"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -13,33 +15,44 @@ type Config struct {
 	ConversationGRPCAddr string
 	PresenceGRPCAddr     string
 	ServiceName          string
+	JWTIssuer            string
+	JWTAudience          string
 	MetricsEnabled       bool
 	TracingEnabled       bool
 	JaegerURL            string
-	HTTPAddr             string
+	ObsHTTPAddr          string
 }
 
 func Load() *Config {
 	return &Config{
-		Port:                 mustEnv("PORT"),
-		JWTSecret:            mustEnv("JWT_SECRET"),
-		AuthGRPCAddr:         mustEnv("AUTH_GRPC_ADDR"),
-		ProfileGRPCAddr:      mustEnv("PROFILE_GRPC_ADDR"),
-		MessagingGRPCAddr:    mustEnv("MSG_GRPC_ADDR"),
-		ConversationGRPCAddr: mustEnv("CONV_GRPC_ADDR"),
-		PresenceGRPCAddr:     mustEnv("PRESENCE_GRPC_ADDR"),
-		ServiceName:          mustEnv("SERVICE_NAME"),
+		Port:                 getEnv("PORT", "8080"),
+		JWTSecret:            getEnv("JWT_SECRET", "secret"),
+		AuthGRPCAddr:         getEnv("AUTH_GRPC_ADDR", "localhost:50051"),
+		ProfileGRPCAddr:      getEnv("PROFILE_GRPC_ADDR", "localhost:50052"),
+		MessagingGRPCAddr:    getEnv("MSG_GRPC_ADDR", "localhost:50053"),
+		ConversationGRPCAddr: getEnv("CONV_GRPC_ADDR", "conversation:50055"),
+		PresenceGRPCAddr:     getEnv("PRESENCE_GRPC_ADDR", "presence:50056"),
+		ServiceName:          getEnv("SERVICE_NAME", "gateway"),
+		JWTIssuer:            getEnv("JWT_ISSUER", "realchat-auth"),
+		JWTAudience:          getEnv("JWT_AUDIENCE", "realchat-clients"),
 		MetricsEnabled:       getEnvBool("METRICS_ENABLED", false),
 		TracingEnabled:       getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:            mustEnv("JAEGER_URL"),
-		HTTPAddr:             getEnv("HTTP_ADDR", ":8081"),
+		JaegerURL:            getEnv("JAEGER_URL", "http://localhost:14268/api/traces"),
+		ObsHTTPAddr:          fixPort(getEnv("HTTP_ADDR", ":8090")),
 	}
+}
+
+func fixPort(port string) string {
+	if port != "" && !strings.Contains(port, ":") {
+		return ":" + port
+	}
+	return port
 }
 
 func mustEnv(key string) string {
 	v := os.Getenv(key)
 	if v == "" {
-		panic("missing required environment variable: " + key)
+		log.Fatalf("missing required env: %s", key)
 	}
 	return v
 }

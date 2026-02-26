@@ -3,9 +3,6 @@ package grpc
 import (
 	"log"
 	"net"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
@@ -41,7 +38,6 @@ func New(app *application.Service) *Server {
 }
 
 func (s *Server) Start(port string) {
-
 	// If port starts with ":", use it directly. If not, prepend ":"
 	lisAddr := port
 	if len(port) > 0 && port[0] != ':' {
@@ -53,18 +49,13 @@ func (s *Server) Start(port string) {
 		log.Fatal(err)
 	}
 
-	go func() {
-		log.Println("gRPC listening on", port)
-		if err := s.grpcServer.Serve(lis); err != nil {
-			log.Fatal(err)
-		}
-	}()
+	log.Println("gRPC listening on", port)
+	if err := s.grpcServer.Serve(lis); err != nil {
+		log.Println("gRPC server stopped:", err)
+	}
+}
 
-	// Graceful shutdown
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-	<-stop
+func (s *Server) Stop() {
 	log.Println("shutting down gRPC...")
 	s.grpcServer.GracefulStop()
 }

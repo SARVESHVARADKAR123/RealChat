@@ -43,19 +43,6 @@ func main() {
 		}()
 	}
 
-	// HTTP Server for Observability (Metrics & Health)
-	obsMux := http.NewServeMux()
-	obsMux.Handle("/metrics", promhttp.Handler())
-	obsMux.Handle("/health/live", http.HandlerFunc(observability.HealthLiveHandler))
-	obsMux.Handle("/health/ready", observability.HealthReadyHandler())
-
-	go func() {
-		log.Info("HTTP observability server started", zap.String("addr", cfg.HTTPAddr))
-		if err := http.ListenAndServe(cfg.HTTPAddr, obsMux); err != nil {
-			log.Error("HTTP observability server failed", zap.Error(err))
-		}
-	}()
-
 	authConn := mustDial(cfg.AuthGRPCAddr)
 	profileConn := mustDial(cfg.ProfileGRPCAddr)
 	msgConn := mustDial(cfg.MessagingGRPCAddr)
@@ -68,6 +55,20 @@ func main() {
 	defer convConn.Close()
 	defer presenceConn.Close()
 
+	// HTTP Server for Observability (Metrics & Health)
+	obsMux := http.NewServeMux()
+	obsMux.Handle("/metrics", promhttp.Handler())
+	obsMux.Handle("/health/live", http.HandlerFunc(observability.HealthLiveHandler))
+	obsMux.Handle("/health/ready", observability.HealthReadyHandler())
+
+	obsSrv := &http.Server{Addr: cfg.ObsHTTPAddr, Handler: obsMux}
+	go func() {
+		log.Info("HTTP observability server started", zap.String("addr", cfg.ObsHTTPAddr))
+		if err := obsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error("HTTP observability server failed", zap.Error(err))
+		}
+	}()
+
 	factory := clients.NewFactory(authConn, profileConn, convConn, msgConn, presenceConn)
 
 	authH := handlers.NewAuthHandler(factory.Auth)
@@ -77,7 +78,7 @@ func main() {
 	msgH := handlers.NewMessageHandler(factory.Message)
 	presenceH := handlers.NewPresenceHandler(factory.Presence)
 
-	r := router.NewRouter(authH, profileH, convH, msgH, presenceH, cfg.JWTSecret, cfg.ServiceName)
+	r := router.NewRouter(authH, profileH, convH, msgH, presenceH, cfg)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -104,7 +105,10 @@ func main() {
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("shutdown failed", zap.Error(err))
+		log.Error("gateway shutdown failed", zap.Error(err))
+	}
+	if err := obsSrv.Shutdown(ctx); err != nil {
+		log.Error("observability shutdown failed", zap.Error(err))
 	}
 
 	log.Info("gateway stopped")

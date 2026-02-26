@@ -71,16 +71,16 @@ func main() {
 	obsMux.Get("/health/live", observability.HealthLiveHandler)
 	obsMux.Get("/health/ready", observability.HealthReadyHandler())
 
-	obsSrv := &http.Server{Addr: cfg.HTTPAddr, Handler: obsMux}
+	obsSrv := &http.Server{Addr: cfg.ObsHTTPAddr, Handler: obsMux}
 	go func() {
-		log.Info("starting observability server", zap.String("addr", cfg.HTTPAddr))
+		log.Info("starting observability server", zap.String("addr", cfg.ObsHTTPAddr))
 		if err := obsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("observability server error", zap.Error(err))
 		}
 	}()
 
 	<-ctx.Done()
-	performGracefulShutdown(obsSrv, grpcSrv, log)
+	performGracefulShutdown(obsSrv, grpcSrv, redisClient, log)
 }
 
 func setupSignalHandler(log *zap.Logger) (context.Context, context.CancelFunc) {
@@ -95,7 +95,7 @@ func setupSignalHandler(log *zap.Logger) (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
-func performGracefulShutdown(obs *http.Server, grpcSrv *grpc.Server, log *zap.Logger) {
+func performGracefulShutdown(obs *http.Server, grpcSrv *grpc.Server, redisClient *redis.Client, log *zap.Logger) {
 	log.Info("shutting down...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -104,5 +104,8 @@ func performGracefulShutdown(obs *http.Server, grpcSrv *grpc.Server, log *zap.Lo
 		log.Error("error during observability server shutdown", zap.Error(err))
 	}
 	grpcSrv.GracefulStop()
+	if redisClient != nil {
+		redisClient.Close()
+	}
 	log.Info("shutdown complete, exiting")
 }

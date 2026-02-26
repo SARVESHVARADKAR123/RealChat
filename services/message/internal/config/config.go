@@ -1,7 +1,9 @@
 package config
 
 import (
+	"log"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -11,7 +13,7 @@ type Config struct {
 	KafkaTopic          string
 	RedisAddr           string
 	ServiceName         string
-	HTTPAddr            string
+	ObsHTTPAddr         string
 	MetricsEnabled      bool
 	TracingEnabled      bool
 	JaegerURL           string
@@ -20,18 +22,25 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		GRPCAddr:            mustEnv("GRPC_ADDR"),
+		GRPCAddr:            fixPort(getEnv("GRPC_ADDR", ":50052")),
 		DatabaseURL:         mustEnv("DATABASE_URL"),
-		KafkaBrokers:        mustEnv("KAFKA_BROKERS"),
-		KafkaTopic:          mustEnv("KAFKA_TOPIC"),
-		RedisAddr:           mustEnv("REDIS_ADDR"),
-		ServiceName:         mustEnv("SERVICE_NAME"),
-		HTTPAddr:            mustEnv("HTTP_ADDR"),
+		KafkaBrokers:        getEnv("KAFKA_BROKERS", "localhost:9092"),
+		KafkaTopic:          getEnv("KAFKA_TOPIC", "message-events"),
+		RedisAddr:           getEnv("REDIS_ADDR", "localhost:6379"),
+		ServiceName:         getEnv("SERVICE_NAME", "message-service"),
+		ObsHTTPAddr:         fixPort(getEnv("HTTP_ADDR", ":8082")),
 		MetricsEnabled:      getEnvBool("METRICS_ENABLED", false),
 		TracingEnabled:      getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:           mustEnv("JAEGER_URL"),
-		ConversationSvcAddr: getEnv("CONVERSATION_SVC_ADDR", "localhost:50055"),
+		JaegerURL:           getEnv("JAEGER_URL", "http://localhost:14268/api/traces"),
+		ConversationSvcAddr: getEnv("CONVERSATION_SVC_ADDR", "localhost:50051"),
 	}
+}
+
+func fixPort(port string) string {
+	if port != "" && !strings.Contains(port, ":") {
+		return ":" + port
+	}
+	return port
 }
 
 func getEnvBool(key string, fallback bool) bool {
@@ -45,7 +54,7 @@ func getEnvBool(key string, fallback bool) bool {
 func mustEnv(k string) string {
 	v := os.Getenv(k)
 	if v == "" {
-		panic("missing required env: " + k)
+		log.Fatalf("missing required env: %s", k)
 	}
 	return v
 }

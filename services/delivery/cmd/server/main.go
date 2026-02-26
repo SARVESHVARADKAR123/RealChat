@@ -77,7 +77,7 @@ func main() {
 
 	// Servers
 	obsSrv := initObservabilityServer(cfg, log)
-	wsSrv := server.New(":"+cfg.HTTPPort, initMainRouter(wsHandler))
+	wsSrv := server.New(cfg.ReqHTTPAddr, initMainRouter(wsHandler))
 
 	startServers(cfg, obsSrv, wsSrv, log)
 
@@ -151,7 +151,7 @@ func initObservabilityServer(cfg *config.Config, log *zap.Logger) *http.Server {
 	mux.Handle("/metrics", promhttp.Handler())
 	mux.Get("/health/live", observability.HealthLiveHandler)
 	mux.Get("/health/ready", observability.HealthReadyHandler())
-	return &http.Server{Addr: cfg.HTTPAddr, Handler: mux}
+	return &http.Server{Addr: cfg.ObsHTTPAddr, Handler: mux}
 }
 
 func initMainRouter(wsHandler *websocket.Handler) http.Handler {
@@ -162,13 +162,13 @@ func initMainRouter(wsHandler *websocket.Handler) http.Handler {
 
 func startServers(cfg *config.Config, obsSrv *http.Server, wsSrv *server.Server, log *zap.Logger) {
 	go func() {
-		log.Info("starting observability server", zap.String("addr", cfg.HTTPAddr))
+		log.Info("starting observability server", zap.String("addr", cfg.ObsHTTPAddr))
 		if err := obsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("observability server error", zap.Error(err))
 		}
 	}()
 	go func() {
-		log.Info("starting main server", zap.String("port", cfg.HTTPPort))
+		log.Info("starting main server", zap.String("addr", cfg.ReqHTTPAddr))
 		if err := wsSrv.Start(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("server error", zap.Error(err))
 		}

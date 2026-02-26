@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -27,7 +30,6 @@ import (
 )
 
 func main() {
-
 	cfg := config.Load()
 
 	// Observability
@@ -46,29 +48,25 @@ func main() {
 		}()
 	}
 
-	// HTTP Server for Observability (Metrics & Health)
-	mux := chi.NewRouter()
-	mux.Use(observability.MetricsMiddleware(cfg.ServiceName))
-	mux.Handle("/metrics", promhttp.Handler())
-	mux.Get("/health/live", observability.HealthLiveHandler)
-	mux.Get("/health/ready", func(w http.ResponseWriter, r *http.Request) {
-		// Messaging ready check
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
-
-	go func() {
-		log.Info("HTTP observability server started", zap.String("addr", cfg.HTTPAddr))
-		if err := http.ListenAndServe(cfg.HTTPAddr, mux); err != nil {
-			log.Error("HTTP observability server failed", zap.Error(err))
-		}
-	}()
-
 	db, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal("db open failed", zap.Error(err))
 	}
 	defer db.Close()
+
+	// HTTP Server for Observability (Metrics & Health)
+	mux := chi.NewRouter()
+	mux.Use(observability.MetricsMiddleware(cfg.ServiceName))
+	mux.Handle("/metrics", promhttp.Handler())
+	mux.Get("/health/live", observability.HealthLiveHandler)
+	mux.Get("/health/ready", observability.HealthReadyHandler(db))
+
+	go func() {
+		log.Info("HTTP observability server started", zap.String("addr", cfg.ObsHTTPAddr))
+		if err := http.ListenAndServe(cfg.ObsHTTPAddr, mux); err != nil {
+			log.Error("HTTP observability server failed", zap.Error(err))
+		}
+	}()
 
 	// Redis Cache
 	cacheClient := cache.New(cfg.RedisAddr)
@@ -109,15 +107,25 @@ func main() {
 
 	// Cancellable context for background workers
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	go worker.Start(ctx)
 
-	// gRPC Server — blocks until SIGINT/SIGTERM
+	// gRPC Server
 	server := grpc_transport.New(app)
-	server.Start(cfg.GRPCAddr)
+	go server.Start(cfg.GRPCAddr)
 
-	// Shutdown: stop outbox worker and flush Kafka producer
+	// Shutdown
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+
+	log.Info("shutting down...")
 	cancel()
-	producer.Flush(5000) // wait up to 5s for any in-flight messages
+
+	// Give components time to finish
+	producer.Flush(5000)
+	server.Stop()
+
 	log.Info("shutdown complete")
 }

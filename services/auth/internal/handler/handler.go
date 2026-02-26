@@ -8,6 +8,10 @@ import (
 	"github.com/SARVESHVARADKAR123/RealChat/services/auth/internal/service"
 )
 
+const (
+	errInvalidBody = "invalid request body"
+)
+
 // AuthHandler exposes HTTP endpoints for authentication operations.
 type AuthHandler struct {
 	svc *service.AuthService
@@ -43,7 +47,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": errInvalidBody})
 		return
 	}
 
@@ -93,7 +97,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 // Refresh rotates a refresh token and returns new access + refresh tokens.
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Refresh string `json:"refresh"`
+		Refresh string `json:"refresh_token"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -121,7 +125,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 // Logout revokes a refresh token.
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Refresh string `json:"refresh"`
+		Refresh string `json:"refresh_token"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -45,7 +45,7 @@ func main() {
 	}
 
 	// Database
-	db, err := sql.Open("postgres", cfg.DBURL)
+	db, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal("db open failed", zap.Error(err))
 	}

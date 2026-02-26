@@ -17,6 +17,16 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	errInvalidBody   = "invalid_body"
+	errMissingParams = "missing_params"
+	errInternalError = "internal_error"
+	errInvalidType   = "invalid_type"
+	errMissingConvID = "missing_conv_id"
+	errInvalidSeq    = "invalid_sequence"
+	msgInvalidJSON   = "invalid json"
+)
+
 // ConversationHandler handles all routes that talk to the conversation service.
 type ConversationHandler struct {
 	client  conversationv1.ConversationApiClient
@@ -40,7 +50,7 @@ func (h *ConversationHandler) CreateConversation(w http.ResponseWriter, r *http.
 		Participants []string `json:"participant_user_ids"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		transport.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid json")
+		transport.WriteError(w, http.StatusBadRequest, errInvalidBody, msgInvalidJSON)
 		return
 	}
 
@@ -135,7 +145,7 @@ func (h *ConversationHandler) GetConversation(w http.ResponseWriter, r *http.Req
 	}
 
 	if convID == "" {
-		transport.WriteError(w, http.StatusBadRequest, "missing_conv_id", "id is required (as path param or query param)")
+		transport.WriteError(w, http.StatusBadRequest, errMissingConvID, "id is required (as path param or query param)")
 		return
 	}
 
@@ -165,11 +175,11 @@ func (h *ConversationHandler) AddParticipant(w http.ResponseWriter, r *http.Requ
 		TargetUserID   string `json:"user_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		transport.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid json")
+		transport.WriteError(w, http.StatusBadRequest, errInvalidBody, msgInvalidJSON)
 		return
 	}
 	if req.ConversationID == "" || req.TargetUserID == "" {
-		transport.WriteError(w, http.StatusBadRequest, "missing_params", "conversation_id and user_id are required")
+		transport.WriteError(w, http.StatusBadRequest, errMissingParams, "conversation_id and user_id are required")
 		return
 	}
 
@@ -200,7 +210,7 @@ func (h *ConversationHandler) RemoveParticipant(w http.ResponseWriter, r *http.R
 		TargetUserID   string `json:"user_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		transport.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid json")
+		transport.WriteError(w, http.StatusBadRequest, errInvalidBody, msgInvalidJSON)
 		return
 	}
 	if req.ConversationID == "" || req.TargetUserID == "" {
@@ -235,15 +245,15 @@ func (h *ConversationHandler) ReadReceipt(w http.ResponseWriter, r *http.Request
 		Sequence       int64  `json:"sequence"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		transport.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid json")
+		transport.WriteError(w, http.StatusBadRequest, errInvalidBody, msgInvalidJSON)
 		return
 	}
 	if req.ConversationID == "" {
-		transport.WriteError(w, http.StatusBadRequest, "missing_conv_id", "conversation_id is required")
+		transport.WriteError(w, http.StatusBadRequest, errMissingConvID, "conversation_id is required")
 		return
 	}
 	if req.Sequence < 0 {
-		transport.WriteError(w, http.StatusBadRequest, "invalid_sequence", "sequence must be >= 0")
+		transport.WriteError(w, http.StatusBadRequest, errInvalidSeq, "sequence must be >= 0")
 		return
 	}
 
@@ -267,12 +277,25 @@ func (h *ConversationHandler) ReadReceipt(w http.ResponseWriter, r *http.Request
 
 func (h *ConversationHandler) resolveConversations(ctx context.Context, currentUserID string, convs []*conversationv1.Conversation) {
 	// 1. Identify direct conversations and the "other" user IDs
-	otherUserIDs := make(map[string]struct{})
-	directConvs := make([]*conversationv1.Conversation, 0)
+	otherUserIDs := h.collectOtherUserIDs(currentUserID, convs)
+	if len(otherUserIDs) == 0 {
+		return
+	}
 
+	// 2. Fetch profiles in batch
+	profileMap := h.fetchProfiles(ctx, otherUserIDs)
+	if len(profileMap) == 0 {
+		return
+	}
+
+	// 3. Populate display names and avatars
+	h.applyProfiles(currentUserID, convs, profileMap)
+}
+
+func (h *ConversationHandler) collectOtherUserIDs(currentUserID string, convs []*conversationv1.Conversation) []string {
+	otherUserIDs := make(map[string]struct{})
 	for _, c := range convs {
 		if c.Type == conversationv1.ConversationType_DIRECT {
-			directConvs = append(directConvs, c)
 			for _, pid := range c.ParticipantUserIds {
 				if pid != currentUserID {
 					otherUserIDs[pid] = struct{}{}
@@ -281,29 +304,32 @@ func (h *ConversationHandler) resolveConversations(ctx context.Context, currentU
 		}
 	}
 
-	if len(otherUserIDs) == 0 {
-		return
-	}
-
-	// 2. Fetch profiles in batch
 	uids := make([]string, 0, len(otherUserIDs))
 	for id := range otherUserIDs {
 		uids = append(uids, id)
 	}
+	return uids
+}
 
+func (h *ConversationHandler) fetchProfiles(ctx context.Context, uids []string) map[string]*profilev1.Profile {
 	resp, err := h.profile.BatchGetProfiles(ctx, &profilev1.BatchGetProfilesRequest{UserIds: uids})
 	if err != nil {
 		slog.Error("failed to batch get profiles", "error", err)
-		return
+		return nil
 	}
 
 	profileMap := make(map[string]*profilev1.Profile)
 	for _, p := range resp.Profiles {
 		profileMap[p.UserId] = p
 	}
+	return profileMap
+}
 
-	// 3. Populate display names and avatars
-	for _, c := range directConvs {
+func (h *ConversationHandler) applyProfiles(currentUserID string, convs []*conversationv1.Conversation, profileMap map[string]*profilev1.Profile) {
+	for _, c := range convs {
+		if c.Type != conversationv1.ConversationType_DIRECT {
+			continue
+		}
 		for _, pid := range c.ParticipantUserIds {
 			if pid != currentUserID {
 				if p, ok := profileMap[pid]; ok {

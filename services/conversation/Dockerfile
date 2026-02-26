@@ -6,7 +6,7 @@ RUN apk add --no-cache git build-base librdkafka-dev pkgconf
 
 WORKDIR /app
 
-# Copy workspace configuration and all module definitions for dependency resolution
+# Copy workspace configuration and ALL module definitions for dependency resolution
 COPY go.work go.work.sum ./
 COPY contracts/go.mod contracts/go.sum ./contracts/
 COPY edge/gateway/go.mod edge/gateway/go.sum ./edge/gateway/
@@ -30,7 +30,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -tags musl -o server ./services/conversati
 # Run Stage
 FROM alpine:3.19
 # Install librdkafka at runtime
-RUN apk --no-cache add ca-certificates librdkafka
+RUN apk --no-cache add ca-certificates curl librdkafka
 WORKDIR /app
 COPY --from=builder /app/server .
 EXPOSE 50055

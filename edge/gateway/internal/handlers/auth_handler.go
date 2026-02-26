@@ -87,3 +87,69 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	transport.WriteJSON(w, http.StatusCreated, resp)
 }
+
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		transport.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
+		return
+	}
+
+	if req.RefreshToken == "" {
+		transport.WriteError(w, http.StatusBadRequest, "missing_fields", "refresh_token is required")
+		return
+	}
+
+	ctx, cancel := transport.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+
+	// Propagate request ID
+	reqID := middleware.RequestIDFromContext(r.Context())
+	ctx = transport.WithRequestID(ctx, reqID)
+
+	resp, err := h.client.Refresh(ctx, &authv1.RefreshRequest{
+		RefreshToken: req.RefreshToken,
+	})
+	if err != nil {
+		transport.GRPCError(w, err)
+		return
+	}
+
+	transport.WriteJSON(w, http.StatusOK, resp)
+}
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		transport.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid request body")
+		return
+	}
+
+	if req.RefreshToken == "" {
+		transport.WriteError(w, http.StatusBadRequest, "missing_fields", "refresh_token is required")
+		return
+	}
+
+	ctx, cancel := transport.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+
+	// Propagate request ID
+	reqID := middleware.RequestIDFromContext(r.Context())
+	ctx = transport.WithRequestID(ctx, reqID)
+
+	_, err := h.client.Logout(ctx, &authv1.LogoutRequest{
+		RefreshToken: req.RefreshToken,
+	})
+	if err != nil {
+		transport.GRPCError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

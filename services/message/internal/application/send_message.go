@@ -71,11 +71,10 @@ func (s *Service) SendMessage(
 			}
 		}
 
-		resp, err := s.convSvc.GetConversation(ctx, &conversationv1.GetConversationRequest{
-			ConversationId: cmd.ConversationID,
-		})
+		// Parallelize calls to conversation service
+		resp, seq, err := s.parallelConvCalls(ctx, cmd.ConversationID)
 		if err != nil {
-			return fmt.Errorf("failed to fetch conversation via gRPC: %w", err)
+			return err
 		}
 
 		isParticipant := false
@@ -85,19 +84,10 @@ func (s *Service) SendMessage(
 				break
 			}
 		}
-		s.log.Info("Message participant check", zap.Any("isParticipant", isParticipant))
+
 		if !isParticipant {
 			return domain.ErrNotParticipant
 		}
-
-		// Claim the next sequence number from the conversation service (which owns conversation_sequences).
-		seqResp, err := s.convSvc.NextSequence(ctx, &conversationv1.NextSequenceRequest{
-			ConversationId: cmd.ConversationID,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to generate message sequence: %w", err)
-		}
-		seq := seqResp.Sequence
 
 		s.log.Info("Message sequence generated successfully", zap.Any("sequence", seq))
 
@@ -190,4 +180,44 @@ func (s *Service) SendMessage(
 	})
 
 	return result, err
+}
+
+func (s *Service) parallelConvCalls(ctx context.Context, convID string) (*conversationv1.GetConversationResponse, int64, error) {
+	type convRes struct {
+		resp *conversationv1.GetConversationResponse
+		err  error
+	}
+	type seqRes struct {
+		resp *conversationv1.NextSequenceResponse
+		err  error
+	}
+
+	convChan := make(chan convRes, 1)
+	seqChan := make(chan seqRes, 1)
+
+	go func() {
+		resp, err := s.convSvc.GetConversation(ctx, &conversationv1.GetConversationRequest{
+			ConversationId: convID,
+		})
+		convChan <- convRes{resp, err}
+	}()
+
+	go func() {
+		resp, err := s.convSvc.NextSequence(ctx, &conversationv1.NextSequenceRequest{
+			ConversationId: convID,
+		})
+		seqChan <- seqRes{resp, err}
+	}()
+
+	cr := <-convChan
+	if cr.err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch conversation via gRPC: %w", cr.err)
+	}
+
+	sr := <-seqChan
+	if sr.err != nil {
+		return nil, 0, fmt.Errorf("failed to generate message sequence: %w", sr.err)
+	}
+
+	return cr.resp, sr.resp.Sequence, nil
 }

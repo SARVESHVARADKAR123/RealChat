@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 
 	conversationv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/conversation/v1"
 	sharedv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/shared/v1"
@@ -36,23 +37,14 @@ func (s *Service) CreateConversation(
 		return nil, domain.ErrInvalidInput
 	}
 
-	// 0. Primary ID Idempotency: If ID is provided, check if it already exists
-	if cmd.ID != "" {
-		if existing, err := s.repo.GetConversation(ctx, nil, cmd.ID); err == nil && existing != nil {
-			return existing, nil
-		}
-	}
-
 	lookupKey := s.getLookupKey(cmd)
 	if cmd.Type == domain.ConversationDirect && lookupKey == nil {
 		return nil, domain.ErrInvalidInput
 	}
 
-	// 1. Initial best-effort lookup before transaction (for direct lookup key)
-	if lookupKey != nil {
-		if existing, err := s.repo.GetConversationByLookupKey(ctx, nil, *lookupKey); err == nil {
-			return existing, nil
-		}
+	// 1. Initial best-effort lookups before transaction in parallel
+	if existing := s.parallelLookup(ctx, cmd.ID, lookupKey); existing != nil {
+		return existing, nil
 	}
 
 	var result *domain.Conversation
@@ -201,4 +193,44 @@ func (s *Service) emitConversationCreated(ctx context.Context, tx *sql.Tx, convI
 	}
 
 	return conv, nil
+}
+
+func (s *Service) parallelLookup(ctx context.Context, id string, lookupKey *string) *domain.Conversation {
+	resChan := make(chan *domain.Conversation, 2)
+	var wg sync.WaitGroup
+
+	if id != "" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if existing, err := s.repo.GetConversation(ctx, nil, id); err == nil && existing != nil {
+				resChan <- existing
+			}
+		}()
+	}
+
+	if lookupKey != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if existing, err := s.repo.GetConversationByLookupKey(ctx, nil, *lookupKey); err == nil && existing != nil {
+				resChan <- existing
+			}
+		}()
+	}
+
+	// Wait for all to finish in a separate goroutine to close the channel
+	go func() {
+		wg.Wait()
+		close(resChan)
+	}()
+
+	// Return the first one that succeeded
+	for conv := range resChan {
+		if conv != nil {
+			return conv
+		}
+	}
+
+	return nil
 }

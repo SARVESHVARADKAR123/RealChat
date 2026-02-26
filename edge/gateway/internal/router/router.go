@@ -3,6 +3,7 @@ package router
 import (
 	"net/http"
 
+	"github.com/SARVESHVARADKAR123/RealChat/edge/gateway/internal/config"
 	"github.com/SARVESHVARADKAR123/RealChat/edge/gateway/internal/handlers"
 	"github.com/SARVESHVARADKAR123/RealChat/edge/gateway/internal/middleware"
 	"github.com/SARVESHVARADKAR123/RealChat/edge/gateway/internal/observability"
@@ -16,21 +17,22 @@ func NewRouter(
 	convH *handlers.ConversationHandler,
 	msgH *handlers.MessageHandler,
 	presenceH *handlers.PresenceHandler,
-	secret string,
-	serviceName string,
+	cfg *config.Config,
 ) http.Handler {
 
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
-	r.Use(observability.MetricsMiddleware(serviceName))
+	r.Use(observability.MetricsMiddleware(cfg.ServiceName))
 	r.Use(middleware.Recovery())
 
 	r.Post("/api/login", authH.Login)
 	r.Post("/api/register", authH.Register)
+	r.Post("/api/refresh", authH.Refresh)
+	r.Post("/api/logout", authH.Logout)
 
 	r.Group(func(p chi.Router) {
-		p.Use(middleware.JWT(secret))
+		p.Use(middleware.JWT(cfg.JWTSecret, cfg.JWTIssuer, cfg.JWTAudience))
 
 		profilePath := "/api/profile"
 		p.Get(profilePath, profileH.GetProfile)

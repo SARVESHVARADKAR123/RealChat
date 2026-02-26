@@ -85,8 +85,9 @@ func (c *Consumer) Start(ctx context.Context) {
 
 				fetches.EachRecord(func(r *kgo.Record) {
 					// Extract trace context
-					ctx := otel.GetTextMapPropagator().Extract(ctx, kgoRecordCarrier{record: r})
-					c.handler.Handle(ctx, r.Value)
+					recordCtx := otel.GetTextMapPropagator().Extract(ctx, kgoRecordCarrier{record: r})
+					// Process each record in parallel
+					go c.handler.Handle(recordCtx, r.Value)
 				})
 			}
 		}

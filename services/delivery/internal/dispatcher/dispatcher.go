@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"sync"
+
 	conversationv1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/conversation/v1"
 	messagev1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/message/v1"
 	presencev1 "github.com/SARVESHVARADKAR123/RealChat/contracts/gen/go/presence/v1"
@@ -114,64 +116,66 @@ func (d *Dispatcher) handleEvent(ctx context.Context, env *sharedv1.EventEnvelop
 		return
 	}
 
-	members := d.membership.Members(conversationID)
-	if len(members) == 0 {
-		// On-demand fetch if cache is empty (likely service restarted)
-		log.Info("dispatcher: cache miss, fetching from conversation service", zap.String("conversation_id", conversationID))
-		resp, err := d.convSvc.GetConversation(ctx, &conversationv1.GetConversationRequest{
-			ConversationId: conversationID,
-		})
-		if err != nil {
-			log.Error("dispatcher: failed to fetch missing conversation", zap.String("conversation_id", conversationID), zap.Error(err))
-			return
-		}
-		d.membership.SetMembers(conversationID, resp.ParticipantUserIds)
-		members = resp.ParticipantUserIds
+	members, err := d.resolveMembers(ctx, conversationID)
+	if err != nil {
+		return
 	}
 
-	remoteInstances := make(map[string]struct{})
+	remoteInstances := sync.Map{} // map[string]struct{}
+	var wg sync.WaitGroup
 
 	for _, userID := range members {
-		devResp, err := d.presenceClient.GetUserDevices(ctx, &presencev1.GetUserDevicesRequest{
-			UserId: userID,
-		})
-		if err != nil {
-			log.Error("dispatcher: presence lookup failed", zap.String("user_id", userID), zap.Error(err))
-			continue
-		}
-
-		for _, device := range devResp.GetDevices() {
-			log.Info("routing", zap.String("user_id", userID), zap.String("target_instance", device.InstanceId), zap.String("current_instance", d.instanceID))
-			if device.InstanceId == d.instanceID {
-				// Deliver to local session
-				sessions := d.registry.GetUserSessions(userID)
-				for _, s := range sessions {
-					if s.DeviceID == device.DeviceId {
-						if !s.Buffer(env, rawPayload) {
-							if s.TrySend(rawPayload) {
-								log.Info("dispatcher: local delivery success", zap.String("user_id", userID), zap.String("device_id", device.DeviceId))
-							}
-						}
-					}
-				}
-			} else {
-				remoteInstances[device.InstanceId] = struct{}{}
-			}
-		}
+		wg.Add(1)
+		go func(uid string) {
+			defer wg.Done()
+			d.deliverToUser(ctx, uid, env, rawPayload, &remoteInstances)
+		}(userID)
 	}
+	wg.Wait()
 
 	// Publish to each remote instance ONLY ONCE
-	for instance := range remoteInstances {
+	remoteInstances.Range(func(key, value interface{}) bool {
+		instance := key.(string)
 		if err := d.router.Publish(ctx, instance, rawPayload); err != nil {
 			log.Error("dispatcher: remote routing failed", zap.String("instance", instance), zap.Error(err))
 		} else {
 			log.Info("dispatcher: remote routing success", zap.String("instance", instance))
 		}
-	}
+		return true
+	})
 
 	// If membership REMOVED -> update cache AFTER routing so removed member got the last event
 	if env.GetEventType() == sharedv1.EventType_EVENT_TYPE_MEMBERSHIP_CHANGED {
 		d.handleMembershipPostRoute(env)
+	}
+}
+
+func (d *Dispatcher) deliverToUser(ctx context.Context, userID string, env *sharedv1.EventEnvelope, rawPayload []byte, remoteInstances *sync.Map) {
+	log := observability.GetLogger(ctx)
+	devResp, err := d.presenceClient.GetUserDevices(ctx, &presencev1.GetUserDevicesRequest{
+		UserId: userID,
+	})
+	if err != nil {
+		log.Error("dispatcher: presence lookup failed", zap.String("user_id", userID), zap.Error(err))
+		return
+	}
+
+	for _, device := range devResp.GetDevices() {
+		if device.InstanceId == d.instanceID {
+			// Deliver to local session
+			sessions := d.registry.GetUserSessions(userID)
+			for _, s := range sessions {
+				if s.DeviceID == device.DeviceId {
+					if !s.Buffer(env, rawPayload) {
+						if s.TrySend(rawPayload) {
+							log.Info("dispatcher: local delivery success", zap.String("user_id", userID), zap.String("device_id", device.DeviceId))
+						}
+					}
+				}
+			}
+		} else {
+			remoteInstances.Store(device.InstanceId, struct{}{})
+		}
 	}
 }
 
@@ -216,30 +220,48 @@ func (d *Dispatcher) DeliverRemote(payload []byte) {
 	if err != nil {
 		return
 	}
-	members := d.membership.Members(conversationID)
-	if len(members) == 0 {
-		log.Info("dispatcher: remote (pubsub) cache miss, fetching from conversation service", zap.String("conversation_id", conversationID))
-		resp, err := d.convSvc.GetConversation(ctx, &conversationv1.GetConversationRequest{
-			ConversationId: conversationID,
-		})
-		if err != nil {
-			log.Error("dispatcher: remote (pubsub) failed to fetch missing conversation", zap.String("conversation_id", conversationID), zap.Error(err))
-			return
-		}
-		d.membership.SetMembers(conversationID, resp.ParticipantUserIds)
-		members = resp.ParticipantUserIds
+	members, err := d.resolveMembers(ctx, conversationID)
+	if err != nil {
+		return
 	}
 
+	var wg sync.WaitGroup
 	for _, userID := range members {
-		sessions := d.registry.GetUserSessions(userID)
-		for _, s := range sessions {
-			if !s.Buffer(&env, payload) {
-				if s.TrySend(payload) {
-					log.Info("dispatcher: remote delivery (pubsub) success", zap.String("user_id", userID), zap.String("conversation_id", conversationID))
+		wg.Add(1)
+		go func(uid string) {
+			defer wg.Done()
+			sessions := d.registry.GetUserSessions(uid)
+			for _, s := range sessions {
+				if !s.Buffer(&env, payload) {
+					if s.TrySend(payload) {
+						log.Info("dispatcher: remote delivery (pubsub) success", zap.String("user_id", uid), zap.String("conversation_id", conversationID))
+					}
+				} else {
+					log.Info("dispatcher: remote delivery (pubsub) buffered", zap.String("user_id", uid), zap.String("conversation_id", conversationID))
 				}
-			} else {
-				log.Info("dispatcher: remote delivery (pubsub) buffered", zap.String("user_id", userID), zap.String("conversation_id", conversationID))
 			}
-		}
+		}(userID)
 	}
+	wg.Wait()
+}
+
+func (d *Dispatcher) resolveMembers(ctx context.Context, conversationID string) ([]string, error) {
+	log := observability.GetLogger(ctx)
+	members := d.membership.Members(conversationID)
+	if len(members) > 0 {
+		return members, nil
+	}
+
+	// On-demand fetch if cache is empty (likely service restarted)
+	log.Info("dispatcher: cache miss, fetching from conversation service", zap.String("conversation_id", conversationID))
+	resp, err := d.convSvc.GetConversation(ctx, &conversationv1.GetConversationRequest{
+		ConversationId: conversationID,
+	})
+	if err != nil {
+		log.Error("dispatcher: failed to fetch members", zap.String("conversation_id", conversationID), zap.Error(err))
+		return nil, err
+	}
+
+	d.membership.SetMembers(conversationID, resp.ParticipantUserIds)
+	return resp.ParticipantUserIds, nil
 }

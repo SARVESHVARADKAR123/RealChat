@@ -14,7 +14,8 @@ vendor/
 *.prof
 
 # Docker & Infrastructure
-infra/postgres/data/
+infra/data/
+infra/.env
 
 # Environment and secrets
 .env

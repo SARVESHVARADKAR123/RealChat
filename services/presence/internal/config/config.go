@@ -1,13 +1,15 @@
 package config
 
 import (
+	"log"
 	"os"
+	"strings"
 )
 
 type Config struct {
 	RedisAddr      string
 	GRPCAddr       string
-	HTTPAddr       string
+	ObsHTTPAddr    string
 	InstanceID     string
 	ServiceName    string
 	MetricsEnabled bool
@@ -17,21 +19,28 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		RedisAddr:      mustEnv("REDIS_ADDR"),
-		GRPCAddr:       getEnv("GRPC_ADDR", ":50056"),
-		HTTPAddr:       getEnv("HTTP_ADDR", ":8096"),
+		RedisAddr:      getEnv("REDIS_ADDR", "localhost:6379"),
+		GRPCAddr:       fixPort(getEnv("GRPC_ADDR", ":50056")),
+		ObsHTTPAddr:    fixPort(getEnv("HTTP_ADDR", ":8096")),
 		InstanceID:     getEnv("INSTANCE_ID", ""),
-		ServiceName:    mustEnv("SERVICE_NAME"),
+		ServiceName:    getEnv("SERVICE_NAME", "presence-service"),
 		MetricsEnabled: getEnvBool("METRICS_ENABLED", false),
 		TracingEnabled: getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:      mustEnv("JAEGER_URL"),
+		JaegerURL:      getEnv("JAEGER_URL", "http://localhost:14268/api/traces"),
 	}
+}
+
+func fixPort(port string) string {
+	if port != "" && !strings.Contains(port, ":") {
+		return ":" + port
+	}
+	return port
 }
 
 func mustEnv(k string) string {
 	v := os.Getenv(k)
 	if v == "" {
-		panic("missing required env: " + k)
+		log.Fatalf("missing required env: %s", k)
 	}
 	return v
 }

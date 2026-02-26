@@ -3,40 +3,48 @@ package config
 import (
 	"log"
 	"os"
+	"strings"
 )
 
 type Config struct {
-	DATABASE_URL   string
+	DatabaseURL    string
 	RedisAddr      string
 	KafkaBrokers   string
 	JWTIssuer      string
 	JWTAudience    string
 	JWTSecret      string
 	HTTPPort       string
-	GRPC_ADDR      string
+	GRPCAddr       string
 	ServiceName    string
 	MetricsEnabled bool
 	TracingEnabled bool
 	JaegerURL      string
-	HTTPAddr       string
+	ObsHTTPAddr    string
 }
 
 func Load() *Config {
 	return &Config{
-		DATABASE_URL:   mustEnv("DATABASE_URL"),
-		RedisAddr:      mustEnv("REDIS_ADDR"),
-		KafkaBrokers:   mustEnv("KAFKA_BROKERS"),
-		JWTIssuer:      mustEnv("JWT_ISSUER"),
-		JWTAudience:    mustEnv("JWT_AUDIENCE"),
-		JWTSecret:      mustEnv("JWT_SECRET"),
-		HTTPPort:       mustEnv("HTTP_PORT"),
-		GRPC_ADDR:      mustEnv("GRPC_ADDR"),
+		DatabaseURL:    getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/profile?sslmode=disable"),
+		RedisAddr:      getEnv("REDIS_ADDR", "localhost:6379"),
+		KafkaBrokers:   getEnv("KAFKA_BROKERS", "localhost:9092"),
+		JWTIssuer:      getEnv("JWT_ISSUER", "realchat"),
+		JWTAudience:    getEnv("JWT_AUDIENCE", "realchat"),
+		JWTSecret:      getEnv("JWT_SECRET", "secret"),
+		HTTPPort:       fixPort(getEnv("HTTP_PORT", "8082")),
+		GRPCAddr:       fixPort(getEnv("GRPC_ADDR", ":50051")),
 		ServiceName:    getEnv("SERVICE_NAME", "profile-service"),
 		MetricsEnabled: getEnvBool("METRICS_ENABLED", false),
 		TracingEnabled: getEnvBool("TRACING_ENABLED", false),
 		JaegerURL:      getEnv("JAEGER_URL", "http://localhost:14268/api/traces"),
-		HTTPAddr:       getEnv("HTTP_ADDR", ":8081"),
+		ObsHTTPAddr:    fixPort(getEnv("HTTP_ADDR", ":8092")),
 	}
+}
+
+func fixPort(port string) string {
+	if port != "" && !strings.Contains(port, ":") {
+		return ":" + port
+	}
+	return port
 }
 
 func getEnvBool(key string, fallback bool) bool {

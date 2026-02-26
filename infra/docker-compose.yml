@@ -1,83 +1,100 @@
-version: "3.9"
-
 name: realchat-local
+
+x-common: &common
+  restart: unless-stopped
+  networks:
+    - realchat
+  env_file:
+    - .env
+
+x-go-service: &go-service
+  <<: *common
+  build:
+    context: ../
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8090/health/live"] # Default for most, will override if needed
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 10s
 
 networks:
   realchat:
-
 
 services:
 
   # ================= JAEGER =================
   jaeger:
+    <<: *common
     image: jaegertracing/all-in-one:1.53
     container_name: realchat-jaeger
     ports:
       - "16686:16686" # UI
       - "14268:14268" # Collector
-    restart: unless-stopped
-    networks: [ realchat ]
 
   # ================= PROMETHEUS =================
   prometheus:
+    <<: *common
     image: prom/prometheus:v2.49.1
     container_name: realchat-prometheus
     volumes:
-      - ../observability/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
-    restart: unless-stopped
-    networks: [ realchat ]
 
   # ================= GRAFANA =================
   grafana:
+    <<: *common
     image: grafana/grafana:10.3.1
     container_name: realchat-grafana
     ports:
       - "3000:3000"
-    restart: unless-stopped
-    networks: [ realchat ]
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
 
   # ================= POSTGRES =================
   postgres:
+    <<: *common
     image: postgres:16
     container_name: realchat-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
-      - ../postgres/data:/var/lib/postgresql/data
-      - ../postgres/init:/docker-entrypoint-initdb.d
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./config/postgres/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
       interval: 5s
       timeout: 3s
       retries: 10
     ports:
       - "5432:5432"
-    restart: unless-stopped
-    networks: [ realchat ]
 
   # ================= REDIS =================
   redis:
+    <<: *common
     image: redis:7
     container_name: realchat-redis
     ports:
       - "6379:6379"
-    restart: unless-stopped
-    networks: [ realchat ]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   # ================= ZOOKEEPER =================
   zookeeper:
+    <<: *common
     image: confluentinc/cp-zookeeper:7.6.0
     container_name: realchat-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
-    restart: unless-stopped
-    networks: [ realchat ]
 
   # ================= KAFKA =================
   kafka:
+    <<: *common
     image: confluentinc/cp-kafka:7.6.0
     container_name: realchat-kafka
     depends_on:
@@ -91,77 +108,91 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     healthcheck:
-      test: [ "CMD-SHELL", "nc -z localhost 9092" ]
-      interval: 5s
-      timeout: 3s
-      retries: 15
+      test: ["CMD-SHELL", "nc -z localhost 9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     ports:
       - "29092:29092"
-    restart: unless-stopped
-    networks: [ realchat ]
 
   # ================= KAFKA TOPIC INIT =================
   kafka-init:
+    <<: *common
     image: confluentinc/cp-kafka:7.6.0
     container_name: realchat-kafka-init
     depends_on:
       kafka:
-        condition: service_healthy
+        condition: service_started
     entrypoint: [ "bash", "-c" ]
     command: |
       echo "Waiting for Kafka..."
-      sleep 15
+      sleep 10
       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic messaging.events.v1 --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic conversation.events.v1 --partitions 1 --replication-factor 1
       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic auth.user.created --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic profile.updated --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic contact.added --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic contact.removed --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic user.blocked --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic user.unblocked --partitions 1 --replication-factor 1
       echo "Kafka topics ready."
     restart: "no"
-    networks: [ realchat ]
 
-  # ================= AUTH MIGRATION =================
+  # ================= MIGRATIONS =================
   auth-migrate:
+    <<: *common
     image: migrate/migrate
     container_name: realchat-auth-migrate
     depends_on:
       postgres:
         condition: service_healthy
-    command: [ "-path", "/migrations", "-database", "postgres://postgres:postgres@postgres:5432/auth?sslmode=disable", "up" ]
+    command: [ "-path", "/migrations", "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth?sslmode=disable", "up" ]
     volumes:
-      - ../../services/auth/migrations:/migrations
+      - ../services/auth/migrations:/migrations
     restart: "no"
-    networks: [ realchat ]
 
-  # ================= PROFILE MIGRATION =================
   profile-migrate:
+    <<: *common
     image: migrate/migrate
     container_name: realchat-profile-migrate
     depends_on:
       postgres:
         condition: service_healthy
-    command: [ "-path", "/migrations", "-database", "postgres://postgres:postgres@postgres:5432/profile?sslmode=disable", "up" ]
+    command: [ "-path", "/migrations", "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/profile?sslmode=disable", "up" ]
     volumes:
-      - ../../services/profile/migrations:/migrations
+      - ../services/profile/migrations:/migrations
     restart: "no"
-    networks: [ realchat ]
 
-  #==================== Message Migration =================
   message-migrate:
+    <<: *common
     image: migrate/migrate
     container_name: realchat-message-migrate
     depends_on:
       postgres:
         condition: service_healthy
-    command: [ "-path", "/migrations", "-database", "postgres://postgres:postgres@postgres:5432/messaging?sslmode=disable", "up" ]
+    command: [ "-path", "/migrations", "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/messaging?sslmode=disable", "up" ]
     volumes:
-      - ../../services/message/migrations:/migrations
+      - ../services/message/migrations:/migrations
     restart: "no"
-    networks: [ realchat ]
 
-
+  conversation-migrate:
+    <<: *common
+    image: migrate/migrate
+    container_name: realchat-conversation-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: [ "-path", "/migrations", "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/conversation?sslmode=disable", "up" ]
+    volumes:
+      - ../services/conversation/migrations:/migrations
+    restart: "no"
 
   # ================= AUTH SERVICE =================
   auth:
+    <<: *go-service
     build:
-      context: ../../
+      context: ../
       dockerfile: services/auth/Dockerfile
     container_name: realchat-auth
     depends_on:
@@ -172,33 +203,23 @@ services:
       redis:
         condition: service_started
     environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/auth?sslmode=disable
-      REDIS_ADDR: redis:6379
-      KAFKA_BROKERS: kafka:9092
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth?sslmode=disable
       HTTP_ADDR: ":8081"
       GRPC_ADDR: ":50051"
       SERVICE_NAME: auth-service
-      LOG_LEVEL: info
-      JWT_SECRET: dev-secret
-      JWT_ISSUER: realchat-auth
-      JWT_AUDIENCE: realchat-clients
-      ACCESS_TTL_MIN: 60
-      REFRESH_TTL_HOURS: 24
-      METRICS_ENABLED: "true"
-      TRACING_ENABLED: "true"
-      JAEGER_URL: "http://jaeger:14268/api/traces"
       OBS_HTTP_ADDR: ":8091"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/health/live"]
     ports:
       - "8081:8081"
       - "50051:50051"
       - "8091:8091"
-    restart: unless-stopped
-    networks: [ realchat ]
 
   # ================= PROFILE SERVICE =================
   profile:
+    <<: *go-service
     build:
-      context: ../../
+      context: ../
       dockerfile: services/profile/Dockerfile
     container_name: realchat-profile
     depends_on:
@@ -209,30 +230,23 @@ services:
       redis:
         condition: service_started
     environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/profile?sslmode=disable
-      REDIS_ADDR: redis:6379
-      KAFKA_BROKERS: kafka:9092
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/profile?sslmode=disable
       HTTP_PORT: "8082"
       GRPC_ADDR: ":50052"
-      JWT_SECRET: dev-secret
-      JWT_ISSUER: realchat-auth
-      JWT_AUDIENCE: realchat-clients
       SERVICE_NAME: profile-service
-      METRICS_ENABLED: "true"
-      TRACING_ENABLED: "true"
-      JAEGER_URL: "http://jaeger:14268/api/traces"
       HTTP_ADDR: ":8092"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8092/health/live"]
     ports:
       - "8082:8082"
       - "50052:50052"
       - "8092:8092"
-    restart: unless-stopped
-    networks: [ realchat ]
 
-  #=====================message-service====================
+  # ================= MESSAGING SERVICE =================
   messaging:
+    <<: *go-service
     build:
-      context: ../../
+      context: ../
       dockerfile: services/message/Dockerfile
     container_name: realchat-messaging
     depends_on:
@@ -243,41 +257,23 @@ services:
       redis:
         condition: service_started
     environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/messaging?sslmode=disable
-      REDIS_ADDR: redis:6379
-      KAFKA_BROKERS: kafka:9092
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/messaging?sslmode=disable
       GRPC_ADDR: ":50053"
       KAFKA_TOPIC: messaging.events.v1
       SERVICE_NAME: messaging-service
-      METRICS_ENABLED: "true"
-      TRACING_ENABLED: "true"
-      JAEGER_URL: "http://jaeger:14268/api/traces"
       HTTP_ADDR: ":8094"
       CONVERSATION_SVC_ADDR: conversation:50055
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8094/health/live"]
     ports:
-#      - "50055:50055"
       - "50053:50053"
       - "8094:8094"
-    restart: unless-stopped
-    networks: [ realchat ]
 
-  #==================== Conversation Migration =================
-  conversation-migrate:
-    image: migrate/migrate
-    container_name: realchat-conversation-migrate
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: [ "-path", "/migrations", "-database", "postgres://postgres:postgres@postgres:5432/conversation?sslmode=disable", "up" ]
-    volumes:
-      - ../../services/conversation/migrations:/migrations
-    restart: "no"
-    networks: [ realchat ]
-
-  #=====================conversation-service====================
+  # ================= CONVERSATION SERVICE =================
   conversation:
+    <<: *go-service
     build:
-      context: ../../
+      context: ../
       dockerfile: services/conversation/Dockerfile
     container_name: realchat-conversation
     depends_on:
@@ -288,31 +284,27 @@ services:
       redis:
         condition: service_started
     environment:
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/conversation?sslmode=disable
-      REDIS_ADDR: redis:6379
-      KAFKA_BROKERS: kafka:9092
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/conversation?sslmode=disable
       GRPC_ADDR: ":50055"
       KAFKA_TOPIC: conversation.events.v1
       SERVICE_NAME: conversation-service
-      METRICS_ENABLED: "true"
-      TRACING_ENABLED: "true"
-      JAEGER_URL: "http://jaeger:14268/api/traces"
       HTTP_ADDR: ":8095"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8095/health/live"]
     ports:
       - "50055:50055"
       - "8095:8095"
-    restart: unless-stopped
-    networks: [ realchat ]
 
   # ================= DELIVERY SERVICE =================
   delivery:
+    <<: *go-service
     build:
-      context: ../../
+      context: ../
       dockerfile: services/delivery/Dockerfile
     container_name: realchat-delivery
     depends_on:
-      kafka-init:
-        condition: service_completed_successfully
+      kafka:
+        condition: service_started
       redis:
         condition: service_started
       messaging:
@@ -322,54 +314,46 @@ services:
       presence:
         condition: service_started
     environment:
-      HTTP_PORT: "8083"
-      REDIS_ADDR: redis:6379
-      KAFKA_BROKERS: kafka:9092
+      HTTP_PORT: ":8083"
       KAFKA_TOPICS: messaging.events.v1,conversation.events.v1
       MSG_SVC_ADDR: messaging:50053
       CONV_SVC_ADDR: conversation:50055
       PRESENCE_SVC_ADDR: presence:50056
       INSTANCE_ID: delivery-1
-      JWT_SECRET: dev-secret
       SERVICE_NAME: delivery-service
-      METRICS_ENABLED: "true"
-      TRACING_ENABLED: "true"
-      JAEGER_URL: "http://jaeger:14268/api/traces"
       HTTP_ADDR: ":8093"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8093/health/live"]
     ports:
       - "8083:8083"
       - "8093:8093"
-    restart: unless-stopped
-    networks: [ realchat ]
 
   # ================= PRESENCE SERVICE =================
   presence:
+    <<: *go-service
     build:
-      context: ../../
+      context: ../
       dockerfile: services/presence/Dockerfile
     container_name: realchat-presence
     depends_on:
       redis:
         condition: service_started
     environment:
-      REDIS_ADDR: redis:6379
       GRPC_ADDR: ":50056"
       INSTANCE_ID: presence-1
       SERVICE_NAME: presence-service
-      METRICS_ENABLED: "true"
-      TRACING_ENABLED: "true"
-      JAEGER_URL: "http://jaeger:14268/api/traces"
       HTTP_ADDR: ":8096"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096/health/live"]
     ports:
       - "50056:50056"
       - "8096:8096"
-    restart: unless-stopped
-    networks: [ realchat ]
 
   # ================= API GATEWAY =================
   gateway:
+    <<: *go-service
     build:
-      context: ../../
+      context: ../
       dockerfile: edge/gateway/Dockerfile
     container_name: realchat-gateway
     depends_on:
@@ -387,19 +371,27 @@ services:
         condition: service_started
     environment:
       PORT: "8080"
-      JWT_SECRET: dev-secret
       AUTH_GRPC_ADDR: auth:50051
       PROFILE_GRPC_ADDR: profile:50052
       MSG_GRPC_ADDR: messaging:50053
       CONV_GRPC_ADDR: conversation:50055
       PRESENCE_GRPC_ADDR: presence:50056
       SERVICE_NAME: gateway
-      METRICS_ENABLED: "true"
-      TRACING_ENABLED: "true"
-      JAEGER_URL: "http://jaeger:14268/api/traces"
       HTTP_ADDR: ":8090"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health/live"]
     ports:
       - "8080:8080"
       - "8090:8090"
-    restart: unless-stopped
-    networks: [ realchat ]
+
+  # ================= NGINX (WebSocket Entry) =================
+  nginx:
+    <<: *common
+    image: nginx:alpine
+    container_name: realchat-nginx
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - delivery
