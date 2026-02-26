@@ -22,9 +22,9 @@ The service exposes the following RPC methods defined in `message_api.proto`:
 
 | RPC Method | Request payload | Response payload | Description |
 | :--- | :--- | :--- | :--- |
-| `SendMessage` | `SendMessageRequest` (conversation_id, sender_user_id, idempotency_key, content, etc.) | `SendMessageResponse` (Message) | Ingests and persists a new message, assigns a precise sequence number via Conversation API, and emits an event via Outbox. |
-| `DeleteMessage` | `DeleteMessageRequest` (conversation_id, message_id, actor_user_id) | `DeleteMessageResponse` | Deletes a message if the actor is authorized. |
-| `SyncMessages` | `SyncMessagesRequest` (conversation_id, after_sequence, page_size) | `SyncMessagesResponse` (Messages) | Pulls sequential chat history efficiently to sync disconnected clients. |
+| `SendMessage` | `SendMessageRequest` (`conversation_id`, `sender_user_id`, `idempotency_key`, `message_type`, `content`, `metadata_json`) | `SendMessageResponse` (Message) | Ingests and persists a new message, assigns a precise sequence number via Conversation API, and emits an event via Outbox. |
+| `DeleteMessage` | `DeleteMessageRequest` (`conversation_id`, `message_id`, `actor_user_id`) | `DeleteMessageResponse` | Deletes a message if the actor is authorized. |
+| `SyncMessages` | `SyncMessagesRequest` (`conversation_id`, `after_sequence`, `page_size`) | `SyncMessagesResponse` (Messages) | Pulls sequential chat history efficiently to sync disconnected clients. |
 
 ## 🛠 Tech Stack & Architecture
 

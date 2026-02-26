@@ -22,13 +22,13 @@ The service exposes the following RPC methods defined in `conversation_api.proto
 
 | RPC Method | Request payload | Response payload | Description |
 | :--- | :--- | :--- | :--- |
-| `CreateConversation` | `CreateConversationRequest` (type, participants, etc.) | `CreateConversationResponse` (Conversation) | Initiates a new group or direct conversation. |
-| `ListConversations` | `ListConversationsRequest` (user_id) | `ListConversationsResponse` (Conversations) | Returns a user's active conversations. |
-| `GetConversation` | `GetConversationRequest` (conversation_id) | `GetConversationResponse` (Conversation, participants) | Returns deep details of a specific conversation and its participant list. |
-| `AddParticipant` | `AddParticipantRequest` (actor, target, conversation) | `AddParticipantResponse` | Adds a user to an existing conversation. |
-| `RemoveParticipant` | `RemoveParticipantRequest` (actor, target, conversation) | `RemoveParticipantResponse` | Removes/kicks a user from a conversation. |
-| `UpdateReadReceipt` | `UpdateReadReceiptRequest` (conversation, user, sequence) | `UpdateReadReceiptResponse` | Updates the high-water mark of a user's read state. |
-| `NextSequence` | `NextSequenceRequest` (conversation_id) | `NextSequenceResponse` (sequence) | Atomically increments and returns the next message sequence number for strong ordering. |
+| `CreateConversation` | `CreateConversationRequest` (`conversation_id`, `type`, `display_name`, `avatar_url`, `participant_user_ids`) | `CreateConversationResponse` (Conversation) | Initiates a new group or direct conversation. |
+| `ListConversations` | `ListConversationsRequest` (`user_id`) | `ListConversationsResponse` (Conversations) | Returns a user's active conversations. |
+| `GetConversation` | `GetConversationRequest` (`conversation_id`) | `GetConversationResponse` (Conversation, participants) | Returns deep details of a specific conversation and its participant list. |
+| `AddParticipant` | `AddParticipantRequest` (`conversation_id`, `actor_user_id`, `target_user_id`) | `AddParticipantResponse` | Adds a user to an existing conversation. |
+| `RemoveParticipant` | `RemoveParticipantRequest` (`conversation_id`, `actor_user_id`, `target_user_id`) | `RemoveParticipantResponse` | Removes/kicks a user from a conversation. |
+| `UpdateReadReceipt` | `UpdateReadReceiptRequest` (`conversation_id`, `user_id`, `read_sequence`) | `UpdateReadReceiptResponse` | Updates the high-water mark of a user's read state. |
+| `NextSequence` | `NextSequenceRequest` (`conversation_id`) | `NextSequenceResponse` (sequence) | Atomically increments and returns the next message sequence number for strong ordering. |
 
 ## 🛠 Tech Stack & Architecture
 

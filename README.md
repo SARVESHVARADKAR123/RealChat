@@ -50,13 +50,13 @@ RealChat heavily relies on an Event-Driven Architecture to decouple services and
 
 | Service | Description | Ports | Readme |
 | :--- | :--- | :--- | :--- |
-| **Gateway** | API Routing & Aggregation | `8080` | [Docs](./edge/gateway/README.md) |
-| **Auth** | User Auth & JWT Management | `8081`, `50051` | [Docs](./services/auth/README.md) |
-| **Profile** | User Profiles & Relationships | `8082`, `50052` | [Docs](./services/profile/README.md) |
-| **Message** | Message Persistence & History | `50053` | [Docs](./services/message/README.md) |
-| **Conversation**| Group & Direct Chat Logic | `50055` | [Docs](./services/conversation/README.md) |
-| **Presence** | Real-time Online/Offline Status | `50056` | [Docs](./services/presence/README.md) |
-| **Delivery** | WebSocket Event Delivery | `8083` | [Docs](./services/delivery/README.md) |
+| **Gateway** | API Routing & Aggregation | `8080` (HTTP), `8090` (Internal) | [Docs](./edge/gateway/README.md) |
+| **Auth** | User Auth & JWT Management | `8081` (HTTP), `50051` (gRPC), `8091` (Internal) | [Docs](./services/auth/README.md) |
+| **Profile** | User Profiles & Relationships | `8082` (HTTP), `50052` (gRPC), `8092` (Internal) | [Docs](./services/profile/README.md) |
+| **Message** | Message Persistence & History | `50053` (gRPC), `8094` (Internal) | [Docs](./services/message/README.md) |
+| **Conversation**| Group & Direct Chat Logic | `50055` (gRPC), `8095` (Internal) | [Docs](./services/conversation/README.md) |
+| **Presence** | Real-time Online/Offline Status | `50056` (gRPC), `8096` (Internal) | [Docs](./services/presence/README.md) |
+| **Delivery** | WebSocket Event Delivery | `8083` (WS), `8093` (Internal) | [Docs](./services/delivery/README.md) |
 
 ## 🚀 Getting Started
 

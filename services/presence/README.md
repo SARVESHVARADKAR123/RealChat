@@ -23,11 +23,11 @@ The service exposes the following RPC methods defined in `presence.proto`:
 
 | RPC Method | Request payload | Response payload | Description |
 | :--- | :--- | :--- | :--- |
-| `GetPresence` | `GetPresenceRequest` (list of user_ids) | `GetPresenceResponse` (List of UserPresence) | Fetches the current online/offline status for a batch of users. |
-| `RegisterSession` | `RegisterSessionRequest` (user, device, instance) | `RegisterSessionResponse` | Called by Delivery Service upon a WebSocket connect. |
-| `UnregisterSession` | `UnregisterSessionRequest` (user, device) | `UnregisterSessionResponse` | Called by Delivery Service upon a WebSocket disconnect. |
-| `RefreshSession` | `RefreshSessionRequest` (user, device) | `RefreshSessionResponse` | Updates the TTL heartbeat of a session to keep it alive. |
-| `GetUserDevices` | `GetUserDevicesRequest` (user_id) | `GetUserDevicesResponse` (List of DeviceInfo) | Returns all currently active websocket sessions for a user. |
+| `GetPresence` | `GetPresenceRequest` (`user_ids`) | `GetPresenceResponse` (List of UserPresence) | Fetches the current online/offline status for a batch of users. |
+| `RegisterSession` | `RegisterSessionRequest` (`user_id`, `device_id`, `instance_id`) | `RegisterSessionResponse` | Called by Delivery Service upon a WebSocket connect. |
+| `UnregisterSession` | `UnregisterSessionRequest` (`user_id`, `device_id`) | `UnregisterSessionResponse` | Called by Delivery Service upon a WebSocket disconnect. |
+| `RefreshSession` | `RefreshSessionRequest` (`user_id`, `device_id`) | `RefreshSessionResponse` | Updates the TTL heartbeat of a session to keep it alive. |
+| `GetUserDevices` | `GetUserDevicesRequest` (`user_id`) | `GetUserDevicesResponse` (List of DeviceInfo) | Returns all currently active websocket sessions for a user. |
 
 ## 🛠 Tech Stack & Architecture
 

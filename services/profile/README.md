@@ -21,9 +21,9 @@ The service exposes the following RPC methods defined in `profile_api.proto`:
 
 | RPC Method | Request payload | Response payload | Description |
 | :--- | :--- | :--- | :--- |
-| `GetProfile` | `GetProfileRequest` (user_id) | `Profile` | Retrieves the public profile for a single user. |
-| `UpdateProfile` | `UpdateProfileRequest` (user_id, optional fields) | `Profile` | Updates an existing user's profile metadata. |
-| `BatchGetProfiles` | `BatchGetProfilesRequest` (list of user_ids) | `BatchGetProfilesResponse` (list of Profiles) | Efficiently fetches profile data for multiple users in one call. |
+| `GetProfile` | `GetProfileRequest` (`user_id`) | `Profile` | Retrieves the public profile for a single user. |
+| `UpdateProfile` | `UpdateProfileRequest` (`user_id`, `display_name`, `avatar_url`, `bio`) | `Profile` | Updates an existing user's profile metadata. |
+| `BatchGetProfiles` | `BatchGetProfilesRequest` (`user_ids`) | `BatchGetProfilesResponse` (list of Profiles) | Efficiently fetches profile data for multiple users in one call. |
 
 ## 🛠 Tech Stack & Architecture
 
