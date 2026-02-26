@@ -9,6 +9,13 @@ The **Conversation** service is the central authority for managing the lifecycle
 - **Atomic Sequence Management**: Generates incrementing, gapless sequence numbers for each message appended to a conversation to guarantee precise ordering across all clients.
 - **Read Receipts**: Tracks the read watermarks for each user per conversation to power UI indicators.
 
+## 🔄 Event-Driven Architecture (EDA) Integration
+
+The Conversation service participates in the broader EDA by emitting lifecycle events that other services or clients can react to:
+
+- **Lifecycle Events**: Publishes events to **Apache Kafka** (e.g., `ConversationCreated`, `ParticipantAdded`, `ParticipantRemoved`) when chat groups or direct messages are structurally mutated.
+- **Read Receipt Events**: Emits changes to users' read watermarks so that Delivery can push these updates in real-time to other participants in the conversation.
+
 ## 📡 API Contract (gRPC)
 
 The service exposes the following RPC methods defined in `conversation_api.proto`:

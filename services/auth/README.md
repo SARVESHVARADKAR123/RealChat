@@ -9,6 +9,13 @@ The **Auth** service is a core microservice in the RealChat application responsi
 - **Token Management**: Implements secure refresh flows to maintain seamless user sessions without requiring repeated logins.
 - **Logout Support**: Invalidates refresh tokens to securely terminate user sessions.
 
+## 🔄 Event-Driven Architecture (EDA) Integration
+
+While primarily a synchronous service handling direct client requests, the Auth service contributes to the EDA ecosystem:
+
+- **Lifecycle Events**: Upon successful registration, the service may publish a `UserRegistered` event to **Apache Kafka**.
+- **Asynchronous Onboarding**: Downstream services (like Profile) can asynchronously consume these events to initialize default sub-records (e.g., creating a blank profile) without slowing down the initial registration request.
+
 ## 📡 API Contract (gRPC)
 
 The service exposes the following RPC methods defined in `auth_api.proto`:

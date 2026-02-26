@@ -5,9 +5,16 @@ The **Message** service acts as the source of truth for all chat history and mes
 ## 🚀 Responsibilities & Features
 
 - **Store-and-Forward Processing**: Stores sent messages securely in a highly durable PostgreSQL database.
-- **Transactional Outbox Pattern**: Upon saving a new message, an event is atomically appended to an 'outbox' table. A separate process streams these events to Apache Kafka ensuring message events are never lost and downstream services always receive them.
 - **Chat History Retrieval**: Provides paginated, sequence-based message synchronization logic, allowing clients to cleanly fetch messages sent after their last known sequence ID.
 - **Message Deletion**: Support for hard or soft message deletion from history.
+
+## 🔄 Event-Driven Architecture (EDA) Integration
+
+The Message service is a primary **Producer** of events in the RealChat ecosystem, ensuring reliable message delivery through the following mechanisms:
+
+- **Transactional Outbox Pattern**: Upon saving a new message, an event is atomically appended to an `outbox` table within the same database transaction.
+- **At-Least-Once Guarantee**: A separate background worker (or CDC tool) streams these outbox events to **Apache Kafka**. This guarantees that message events are never lost, even if downstream consumers are temporarily unavailable.
+- **Topology**: Publishes to specific Kafka topics (e.g., `chat.messages.v1`) which are natively consumed by the Delivery Service for real-time WebSocket push, and potentially other services like push notifications.
 
 ## 📡 API Contract (gRPC)
 

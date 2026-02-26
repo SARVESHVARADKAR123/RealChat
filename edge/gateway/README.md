@@ -9,6 +9,14 @@ The **Gateway** service (`edge/gateway`) serves as the single entry point (API G
 - **Observability**: Automatically instruments tracing (via OpenTelemetry) and metrics (Prometheus) on all incoming requests.
 - **Resilience**: Implements panic recovery and centralized request ID tracing.
 
+## 🔄 Event-Driven Architecture (EDA) Integration
+
+The Gateway sits at the edge of the RealChat architecture, bridging the gap between synchronous clients and the asynchronous backend:
+
+- **Synchronous Entry Point**: While the system heavily leverages EDA (Kafka) internally, clients typically invoke actions (like sending a message) via synchronous REST calls through the Gateway.
+- **Delegation to Event Producers**: The Gateway routes these requests to backend microservices (like `Message`), which then handle the actual event publication (e.g., via the Outbox Pattern).
+- **Tracing Origin**: It generates the trace context that propagates through both synchronous gRPC calls and asynchronous Kafka events.
+
 ## 📡 API Contract (REST HTTP)
 
 The Gateway exposes the following RESTful endpoints:

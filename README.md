@@ -22,13 +22,19 @@ RealChat is a modern, high-performance, microservices-based real-time chat appli
 
 ## 🚀 Architecture
 
-The system is designed with a focus on scalability and observability. It consists of multiple independent services coordinated through an API Gateway.
+The system is designed with a focus on scalability, observability, and decoupled interactions through an Event-Driven Architecture (EDA). It consists of multiple independent services coordinated via an API Gateway and Apache Kafka.
 
 ### Core Architecture
-- **API Gateway**: The entry point for all client requests, providing unified HTTP routing, rate-limiting, and authentication.
-- **Microservices**: Specialized services handling authentication, user profiles, messaging, conversations, and presence.
-- **Event-Driven**: Kafka handles asynchronous events like message delivery and user updates.
+- **API Gateway**: The entry point for all HTTP and WebSocket requests, providing unified routing, rate-limiting, and authentication validation.
+- **Microservices**: Specialized services handling authentication, user profiles, messaging, conversations, and presence via synchronous gRPC.
 - **Real-Time Delivery**: A dedicated delivery service manages WebSocket connections for pushing live updates to clients.
+
+### Event-Driven Architecture (EDA)
+RealChat heavily relies on an Event-Driven Architecture to decouple services and ensure reliable, asynchronous processing:
+- **Transactional Outbox Pattern**: The Message service persists chat messages to a database and atomically writes an event to an `outbox` table in the same transaction.
+- **Event Streaming**: Background processes stream outbox events into **Apache Kafka** topics, guaranteeing at-least-once delivery without dropping messages.
+- **Asynchronous Fan-out**: The Delivery service continuously consumes these Kafka topics and fans out the events to globally distributed WebSocket clients.
+- **Presence & Lifecycle Events**: User connect/disconnect events, typing indicators, and online status changes are modeled as asynchronous events, reducing synchronous bottlenecks.
 
 ## 🛠 Tech Stack
 

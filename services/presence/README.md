@@ -9,6 +9,14 @@ The **Presence** service is a highly responsive, high-throughput microservice in
 - **Status Broadcasting**: Emits state transitions (Online/Offline) enabling client UIs to instantly show green/grey presence dots next to user avatars.
 - **Multi-Device Support**: Efficiently handles cases where a single user is logged in onto multiple devices simultaneously.
 
+## 🔄 Event-Driven Architecture (EDA) Integration
+
+The Presence service relies heavily on asynchronous event-driven flows to minimize overhead during frequent status changes:
+
+- **State Broadcasting**: Rather than having clients explicitly poll for presence changes, the service publishes `UserOnline` and `UserOffline` events directly to **Apache Kafka**.
+- **Delivery Fan-out Hub**: The Delivery Service consumes these Kafka presence events and pushes the live status updates to any client who shares a conversation or friend-list with the state-changed user.
+- **Ephemeral Event Flow**: Presence events are treated as ephemeral and high-throughput, bypassing slow database persistence in favor of Redis and rapid Kafka propagation.
+
 ## 📡 API Contract (gRPC)
 
 The service exposes the following RPC methods defined in `presence.proto`:

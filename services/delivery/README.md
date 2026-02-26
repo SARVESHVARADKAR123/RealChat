@@ -5,9 +5,16 @@ The **Delivery** service is the stateless connection-holding engine of the RealC
 ## 🚀 Responsibilities & Features
 
 - **WebSocket Management**: Maintains thousands of simultaneous full-duplex WebSocket connections per node.
-- **Message Routing**: Subscribes to backend Apache Kafka topic streams, and accurately fans out these consumed messages to the precisely connected target user sessions.
 - **Presence Notification**: Informs the external Presence Service when clients gracefully or ungracefully connect, disconnect, or drop.
 - **Heartbeat & Pinging**: Sends and expects ping/pong frames over WebSockets to identify inactive network drops.
+
+## 🔄 Event-Driven Architecture (EDA) Integration
+
+The Delivery service operates primarily as a **Consumer** of events within the RealChat ecosystem, bridging the asynchronous backend with synchronous real-time clients:
+
+- **Kafka Event Consumption**: Subscribes to backend Apache Kafka topic streams (e.g., `chat.messages.v1` published by the Message service, or presence events).
+- **Asynchronous Fan-out**: Consumes messages at high throughput from Kafka partition logs independently of the publishers, and accurately fans out these payloads to precisely the target user sessions currently connected to that node.
+- **Decoupled Delivery**: Because Message ingestion and Delivery are decoupled by Kafka, a massive spike in concurrent users receiving messages will not overload the databases or write-paths.
 
 ## 📡 API Contract (gRPC & WebSocket)
 
