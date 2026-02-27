@@ -1,47 +1,79 @@
 # Delivery Service
 
-The **Delivery** service is the stateless connection-holding engine of the RealChat architecture. It manages active WebSocket connections for thousands of concurrently connected clients, pushing real-time messages directly to users.
+## 1. Service Overview
 
-## 🚀 Responsibilities & Features
+The **Delivery Service** is the real-time edge of the RealChat ecosystem. It maintains long-lived WebSocket connections with client devices, acting as the primary push-notification layer for active sessions. It bridges the asynchronous, event-driven backend (Kafka) directly to synchronous user devices.
 
-- **WebSocket Management**: Maintains thousands of simultaneous full-duplex WebSocket connections per node.
-- **Presence Notification**: Informs the external Presence Service when clients gracefully or ungracefully connect, disconnect, or drop.
-- **Heartbeat & Pinging**: Sends and expects ping/pong frames over WebSockets to identify inactive network drops.
+**Core Responsibilities:**
+- **WebSocket Management:** Handle thousands of concurrent, long-lived bidirectional WebSocket connections.
+- **Event Routing:** Consume real-time events from Kafka (e.g., new messages, profile updates) and fan them out to the correct, connected user devices.
+- **Buffering & Delivery Guarantees:** Buffer incoming Kafka events for clients that are temporarily disconnected or handling sequence gaps, ensuring smooth real-time rendering on the UI.
+- **Heartbeating & Presence:** Track active connections and publish connection state changes to the Presence Service.
 
-## 🔄 Event-Driven Architecture (EDA) Integration
+---
 
-The Delivery service operates primarily as a **Consumer** of events within the RealChat ecosystem, bridging the asynchronous backend with synchronous real-time clients:
+## 2. Infrastructure Overview
 
-- **Kafka Event Consumption**: Subscribes to backend Apache Kafka topic streams (e.g., `chat.messages.v1` published by the Message service, or presence events).
-- **Asynchronous Fan-out**: Consumes messages at high throughput from Kafka partition logs independently of the publishers, and accurately fans out these payloads to precisely the target user sessions currently connected to that node.
-- **Decoupled Delivery**: Because Message ingestion and Delivery are decoupled by Kafka, a massive spike in concurrent users receiving messages will not overload the databases or write-paths.
+Unlike the core domain services (Message, Profile), the Delivery Service is entirely stateless regarding permanent data storage. It acts as an intelligent router and relies on in-memory state and Redis.
 
-## 📡 API Contract (gRPC & WebSocket)
+### Core Components
 
-The internal routing logic uses a stream-based gRPC API (`delivery_api.proto`), but the service's *primary* function is consuming from Kafka and exposing external WebSocket connections.
+* **WebSocket Registry (`internal/websocket/registry.go`)**: An in-memory data structure mapping `user_id` -> `[]Session`. A single user can have multiple concurrent active sessions (e.g., iPhone and Desktop).
+* **Kafka Consumers (`internal/kafka/`)**: High-throughput consumers listening to various domain topics (`chat.messages.v1`, `chat.profiles.v1`).
+* **Redis Pub/Sub & Presence (`internal/presencewatcher/`)**: Because clients can connect to *any* Delivery Service node behind the load balancer, Redis is used to track which node holds the active connection for a specific `user_id`.
 
-| RPC Method / Action | Flow Type | Description |
+---
+
+## 3. Transaction Flow: Delivering a Message
+
+When a user receives a new chat message, the delivery flow bypasses traditional databases entirely for speed:
+
+1. **Kafka Consumption:** A Delivery Service node consumes a `MessageSentEvent` from the `"messages-topic"`.
+2. **Local Registry Check:** The node checks its internal `WebSocket Registry` to see if the recipient `user_id` is currently connected to *this specific node*.
+3. **Local Delivery:** If connected, the event payload is serialized to binary (Protobuf) and pushed into the specific WebSocket session's `SendQueue`.
+4. **Buffering / Backpressure:** If the client's `SendQueue` is full (client is reading too slowly), the node applies backpressure. If the buffer overflows, the connection is intentionally dropped to protect the server's memory.
+5. **Cross-Node Routing (Optional depending on architecture):** If the user is connected to a *different* Delivery node, the Kafka consumer group naturally ensures that the event is processed by a node. If partitioned by `user_id`, the correct node processes it. Alternatively, nodes use Redis Pub/Sub to forward the event to the node holding the connection.
+
+---
+
+## 4. Connection Lifecycle & Heartbeats
+
+To keep load balancers from dropping idle connections and to accurately track online status:
+
+- **Server-Side Pings:** The Delivery Service sends a WebSocket `PingMessage` to the client every `54 seconds` (`pingPeriod`).
+- **Client-Side Pongs:** The client must respond with a `PongMessage` within `60 seconds` (`pongWait`).
+- **Disconnection:** If a pong is missed, or a write deadline fails, the service forcefully closes the connection, removes the session from the registry, and emits a `UserDisconnected` event to the Presence Service.
+
+---
+
+## 5. Delivery Guarantees
+
+- **At-Most-Once (Real-Time):** The Delivery Service only guarantees "fire and forget" push over the WebSocket. If a client is offline or drops packets instantly after the WebSocket frame is sent, the Delivery Service does *not* retry.
+- **Reliability via Sync:** Clients are expected to hit the Message Service's `SyncMessages` API upon reconnection to fetch any missed events. The Delivery Service's sole job is *speed*, not durable persistence.
+- **Ordered Buffering:** If events arrive slightly out of order from Kafka, the `Session` struct can buffer and sort them by `Sequence` before flushing them down the WebSocket, ensuring the client UI doesn't render messages out of order.
+
+---
+
+## 6. Failure Handling
+
+| Failure Scenario | System Behavior | Resolution / Recovery |
 | :--- | :--- | :--- |
-| `Delivery Connect` | gRPC Stream / WebSocket Upgrade | Accepts incoming connections mapping a `user_id` and `device_id` to an active duplex stream. Pushes `DeliveryEvent` packages containing sequences and payloads. |
-| **Kafka Consumption** | Messaging Topic | Constantly polls Kafka partition logs to read new un-sent messages and push them towards the necessary WebSocket queues. |
+| **Delivery Node Crash** | All WebSockets connected to that specific node drop instantly. | Clients detect the dropped TCP connection and automatically reconnect to the load balancer, which routes them to a healthy node. |
+| **Kafka Broker Down** | WebSockets remain established. Real-time push stops. | Once Kafka recovers, consumers resume reading and push the backlog of events to connected clients. |
+| **Client Network Drop** | Ping/Pong heartbeat fails. | Server drops the session and cleans up memory. Client reconnects when network is restored. |
+| **Client Reads Too Slowly** | Server `SendQueue` (size 128) fills up. | Server logs `backpressure overflow` and gracefully terminates the session via `CloseWithReason`. Client must reconnect and sync. |
 
-## 🛠 Tech Stack & Architecture
+---
 
-- **Language**: Go
-- **Communication**: gRPC (Internal stream management), WebSockets (Client-facing real-time sockets)
-- **Event Streaming**: Apache Kafka (Consumes message events from other services like `Message` or `Presence`).
-- **Dependencies**: Redis (Sometimes used for instance mapping or Pub/Sub fanouts when routing messages across multiple scaling Delivery nodes).
+## 7. Scalability Considerations
 
-## ⚙️ Running Locally
+- **Memory Bound:** The primary bottleneck of the Delivery Service is RAM. Each concurrent WebSocket connection (and its associated go-routines and `SendQueue` channel buffers) consumes memory. Scaling involves adding more horizontal instances.
+- **OS File Descriptors:** Because every WebSocket is a TCP connection, the host OS must be configured to allow a massive number of open file descriptors (`ulimit -n`).
+- **Kafka Partitioning Strategy:** To maximize efficiency, Kafka topics should be partitioned by `user_id`. This ensures that all events destined for a specific user go to the same consumer, preventing the need for complex cross-node Redis broadcasting.
 
-Typically spun up via Docker Compose due to heavy Kafka dependencies:
-```bash
-cd infra/local
-docker compose up -d
-```
+---
 
-To run independently during development:
-```bash
-cd services/delivery
-go run cmd/main.go
-```
+## 8. Tradeoffs
+
+* **Stateless Push vs Guaranteed Delivery:** RealChat explicitly trades strict delivery guarantees over the WebSocket for extreme low-latency and low-overhead push. Heavylifting for guaranteed consistency is completely offloaded to the client's reconnect-and-sync logic.
+* **Go Channels per Session:** Allocating a `chan []byte` for every single connected user makes the code incredibly clean and concurrent-safe, but adds a small baseline memory footprint per user compared to lower-level epoll/kqueue event loop architectures (like in C or Rust).
