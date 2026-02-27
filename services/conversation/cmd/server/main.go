@@ -57,9 +57,11 @@ func main() {
 	mux.Get("/health/live", observability.HealthLiveHandler)
 	mux.Get("/health/ready", observability.HealthReadyHandler(db))
 
+	obsSrv := &http.Server{Addr: cfg.ObsHTTPAddr, Handler: mux}
+
 	go func() {
 		log.Info("HTTP observability server started", zap.String("addr", cfg.ObsHTTPAddr))
-		if err := http.ListenAndServe(cfg.ObsHTTPAddr, mux); err != nil {
+		if err := obsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("HTTP observability server failed", zap.Error(err))
 		}
 	}()
@@ -106,6 +108,11 @@ func main() {
 
 	log.Info("shutting down...")
 	cancel()
+
+	// HTTP Graceful shutdown
+	ctxShut, obsCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer obsCancel()
+	_ = obsSrv.Shutdown(ctxShut)
 
 	// Give components time to finish
 	producer.Flush(5000)

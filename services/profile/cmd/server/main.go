@@ -57,9 +57,11 @@ func main() {
 	obsMux.Get("/health/live", observability.HealthLiveHandler)
 	obsMux.Get("/health/ready", observability.HealthReadyHandler(db))
 
+	obsSrv := &http.Server{Addr: cfg.ObsHTTPAddr, Handler: obsMux}
+
 	go func() {
 		log.Info("HTTP observability server started", zap.String("addr", cfg.ObsHTTPAddr))
-		if err := http.ListenAndServe(cfg.ObsHTTPAddr, obsMux); err != nil && err != http.ErrServerClosed {
+		if err := obsSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("HTTP observability server failed", zap.Error(err))
 		}
 	}()
@@ -133,6 +135,7 @@ func main() {
 
 	// Shut down HTTP server first if possible or just log error if we don't have the handle
 	// In the previous code srv was defined later. Let's make sure we handle it.
+	_ = obsSrv.Shutdown(ctxShut)
 	_ = srv.Shutdown(ctxShut)
 	grpcSrv.Stop()
 	db.Close()
