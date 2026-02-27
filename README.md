@@ -1,100 +1,68 @@
 ﻿# RealChat
 
-RealChat is a modern, high-performance, microservices-based real-time chat application built with Go. It leverages a robust architecture featuring gRPC for internal communication, Kafka for event-driven messaging, and WebSockets for real-time delivery.
+## 1. System Overview
+RealChat is a distributed, real-time messaging backend system. It provides low-latency message delivery, reliable presence tracking, and scalable user communication. The architecture is designed to handle high concurrency while maintaining strict data consistency and fault tolerance through an event-driven microservices model.
 
-## 📋 Table of Contents
+## 2. High-Level Architecture Description
+The system is composed of several decoupled services communicating synchronously via gRPC/HTTP and asynchronously via Kafka:
+- **API Gateway**: Provides a unified entry point for clients, handling protocol translation and routing.
+- **Auth Service**: Manages issuing and validating JSON Web Tokens (JWT) for authentication and authorization.
+- **Profile Service**: Manages user metadata and directory lookups.
+- **Messaging Service**: Handles core message domain logic, persisting messages to PostgreSQL and reliably publishing events using the Outbox pattern.
+- **Delivery Service**: Maintains stateful WebSocket connections with clients, consuming routing events from Kafka and pushing messages to connected users.
 
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Tech Stack](#-tech-stack)
-- [Services](#-services)
-- [Getting Started](#-getting-started)
-- [Project Structure](#-project-structure)
+Core infrastructure dependencies include:
+- **Kafka**: Serves as the event backbone for inter-service communication and reliable message routing.
+- **PostgreSQL**: Provides durable relational storage for profiles, messages, and transactional outbox tables.
+- **Redis**: Maintains ephemeral state for user presence, WebSocket session routing, and distributed rate limiting.
 
-## ✨ Features
+## 3. Design Principles
+- **Event-Driven**: State changes are propagated asynchronously via Kafka, decoupling producers from consumers and masking downstream latency.
+- **Reliability**: The system prioritizes message durability over immediate delivery. Data is persisted to PostgreSQL before being published to Kafka.
+- **Isolation**: Services are database-per-service isolated. Failure domains are restricted to individual service boundaries.
+- **Idempotency**: All state-mutating APIs and message consumers are designed to be idempotent to safely handle network retries and at-least-once delivery semantics.
 
-- **Real-Time Messaging**: Low-latency message delivery using WebSockets.
-- **Group & Direct Chats**: Support for 1-on-1 conversations and multi-user groups with admin controls.
-- **Event-Driven**: Reliable message processing and delivery backed by Apache Kafka outbox pattern.
-- **Scalable Microservices**: Independent, specialized services communicating efficiently via gRPC.
-- **Presence Tracking**: Real-time online/offline status indicators.
-- **Comprehensive Observability**: Built-in distributed tracing (Jaeger) and metrics (Prometheus/Grafana).
+## 4. Consistency Guarantees
+- **Producer Guarantees**: Messages are persisted via the Transactional Outbox pattern. A relational transaction commits both the domain entity and the outbox event. A background relay reliably publishes the outbox event to Kafka.
+- **Consumer Guarantees**: Consumers commit Kafka offsets only after successful processing and local state updates.
+- **Delivery Semantics**: The system provides at-least-once delivery semantics end-to-end. Clients must deduplicate received messages based on unique message identifiers.
+- **Ordering Model**: Total ordering is not guaranteed across the system. Causal ordering within a single conversation is maintained by partitioning Kafka topics by conversation ID, ensuring events for a specific chat room are processed sequentially by a single consumer replica.
 
-## 🚀 Architecture
+## 5. Failure Handling Strategy
+- **Kafka Down**: The Messaging Service continues to accept messages, persisting them to the database and outbox table. The outbox relay will stall until Kafka recovers, at which point backlogged events are published.
+- **Redis Down**: Rate limiting degrades openly. WebSocket reconnections may temporarily fail presence updates. Active WebSocket sessions remain open, but new connections may experience routing delays.
+- **Poison Messages**: Consumers utilize a Dead Letter Queue (DLQ) strategy. Messages failing deserialization or repeated processing attempts are routed to a DLQ topic after a bounded number of retries, unblocking the partition.
+- **Service Crash**: All services are stateless (excluding database/broker state) and managed by an orchestrator container. Crashed instances are restarted automatically. In-flight requests may fail and require client-side retries.
 
-The system is designed with a focus on scalability, observability, and decoupled interactions through an Event-Driven Architecture (EDA). It consists of multiple independent services coordinated via an API Gateway and Apache Kafka.
+## 6. Scalability Model
+- **Stateless Gateway and API Services**: The API Gateway, Auth Service, Profile Service, and Messaging Service are fully stateless and scale horizontally behind a load balancer.
+- **Partition-Based Scaling**: Kafka consumers in the Delivery Service scale by adding replicas up to the number of topic partitions.
+- **Connection Management**: The Delivery Service utilizes Redis for session routing, allowing WebSocket connections to be distributed across any Delivery Service replica.
 
-### Core Architecture
-- **API Gateway**: The entry point for all HTTP and WebSocket requests, providing unified routing, rate-limiting, and authentication validation.
-- **Microservices**: Specialized services handling authentication, user profiles, messaging, conversations, and presence via synchronous gRPC.
-- **Real-Time Delivery**: A dedicated delivery service manages WebSocket connections for pushing live updates to clients.
+## 7. Security Model
+- **Authentication**: Stateless, short-lived JWTs are utilized for request authentication. The Auth Service issues tokens; other services validate signatures independently using shared public keys.
+- **Rate Limiting**: A Redis-backed distributed rate limiter protects public endpoints against abuse and resource exhaustion, configured per IP address and user ID.
+- **Transport Security**: All external client communication mandates TLS. Internal service-to-service communication occurs over private network segments.
 
-### Event-Driven Architecture (EDA)
-RealChat heavily relies on an Event-Driven Architecture to decouple services and ensure reliable, asynchronous processing:
-- **Transactional Outbox Pattern**: The Message service persists chat messages to a database and atomically writes an event to an `outbox` table in the same transaction.
-- **Event Streaming**: Background processes stream outbox events into **Apache Kafka** topics, guaranteeing at-least-once delivery without dropping messages.
-- **Asynchronous Fan-out**: The Delivery service continuously consumes these Kafka topics and fans out the events to globally distributed WebSocket clients.
-- **Presence & Lifecycle Events**: User connect/disconnect events, typing indicators, and online status changes are modeled as asynchronous events, reducing synchronous bottlenecks.
+## 8. Running Locally
+The system can be executed locally using Docker Compose, which provisions all required dependencies and service containers.
 
-## 🛠 Tech Stack
+Prerequisites:
+- Docker and Docker Compose
 
-- **Language**: [Go](https://go.dev/)
-- **Communication**: [gRPC](https://grpc.io/), [Protobuf](https://protobuf.dev/)
-- **Real-time**: WebSockets
-- **Event Streaming**: [Apache Kafka](https://kafka.apache.org/) (Confluent Platform)
-- **Databases**: [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/)
-- **Observability**: [Jaeger](https://www.jaegertracing.io/), [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/)
-- **Infrastructure**: Docker & Docker Compose
+Execution:
+```bash
+docker-compose up -d --build
+```
+This command initializes PostgreSQL, Redis, Kafka, Zookeeper, and all RealChat microservices.
 
-## 📦 Services
+## 9. Chaos Testing Summary
+The system design explicitly accounts for infrastructure volatility.
+- **Network Partitions**: Outbox relays retry indefinitely on connection loss.
+- **Dependency Eviction**: Service readiness probes detect database/broker disconnections, routing traffic away from degraded instances.
+- **Graceful Shutdown**: Services intercept termination signals (SIGTERM) to complete in-flight requests, drain Kafka consumers, and cleanly close database connections before exiting.
 
-| Service | Description | Ports | Readme |
-| :--- | :--- | :--- | :--- |
-| **Gateway** | API Routing & Aggregation | `8080` (HTTP), `8090` (Internal) | [Docs](./edge/gateway/README.md) |
-| **Auth** | User Auth & JWT Management | `8081` (HTTP), `50051` (gRPC), `8091` (Internal) | [Docs](./services/auth/README.md) |
-| **Profile** | User Profiles & Relationships | `8082` (HTTP), `50052` (gRPC), `8092` (Internal) | [Docs](./services/profile/README.md) |
-| **Message** | Message Persistence & History | `50053` (gRPC), `8094` (Internal) | [Docs](./services/message/README.md) |
-| **Conversation**| Group & Direct Chat Logic | `50055` (gRPC), `8095` (Internal) | [Docs](./services/conversation/README.md) |
-| **Presence** | Real-time Online/Offline Status | `50056` (gRPC), `8096` (Internal) | [Docs](./services/presence/README.md) |
-| **Delivery** | WebSocket Event Delivery | `8083` (WS), `8093` (Internal) | [Docs](./services/delivery/README.md) |
-
-## 🚀 Getting Started
-
-### Prerequisites
-- [Docker](https://www.docker.com/) & Docker Compose
-- [Go](https://go.dev/) 1.25+
-
-### Running the Project
-
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd RealChat
-   ```
-
-2. **Spin up the infrastructure**:
-   Navigate to the local infra directory and start the services:
-   ```bash
-   cd infra/local
-   docker compose up -d
-   ```
-   This will start all databases, message brokers, observability tools, and the microservices themselves.
-
-3. **Verify running services**:
-   ```bash
-   docker ps
-   ```
-
-### Observability Dashboards
-- **Jaeger (Traces)**: [http://localhost:16686](http://localhost:16686)
-- **Prometheus (Metrics)**: [http://localhost:9090](http://localhost:9090)
-- **Grafana (Dashboards)**: [http://localhost:3000](http://localhost:3000)
-
-## 📂 Project Structure
-
-- `/contracts`: Protobuf definitions and generated code.
-- `/edge/gateway`: The API Gateway service.
-- `/services`: Core microservices (auth, conversation, delivery, message, presence, profile).
-- `/infra`: Docker Compose and infrastructure configuration (Postgres, Kafka, etc.).
-- `/shared`: Shared Go libraries and utilities.
-- `go.work`: Go Workspace file for multi-module development.
+## 10. Tradeoffs & Limitations
+- **No Exactly-Once Delivery**: The system guarantees at-least-once delivery. Exactly-once messaging in distributed systems incurs prohibitive performance overhead. Clients are responsible for idempotency.
+- **Eventual Consistency**: Read operations may return stale data immediately following a write, pending Kafka replication and consumer processing.
+- **Operational Complexity**: The Outbox pattern and Kafka dependencies introduce significant operational overhead compared to a monolithic architecture.
