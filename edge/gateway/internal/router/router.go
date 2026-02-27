@@ -25,6 +25,7 @@ func NewRouter(
 	r.Use(middleware.RequestID)
 	r.Use(observability.MetricsMiddleware(cfg.ServiceName))
 	r.Use(middleware.Recovery())
+	r.Use(middleware.RateLimit(cfg.RateLimitRequests, cfg.RateLimitWindow))
 
 	r.Post("/api/login", authH.Login)
 	r.Post("/api/register", authH.Register)

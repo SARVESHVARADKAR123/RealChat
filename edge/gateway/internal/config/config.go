@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -21,6 +22,10 @@ type Config struct {
 	TracingEnabled       bool
 	JaegerURL            string
 	ObsHTTPAddr          string
+
+	// Rate Limiting
+	RateLimitRequests int
+	RateLimitWindow   string
 }
 
 func Load() *Config {
@@ -39,6 +44,8 @@ func Load() *Config {
 		TracingEnabled:       getEnvBool("TRACING_ENABLED", false),
 		JaegerURL:            getEnv("JAEGER_URL", "http://localhost:14268/api/traces"),
 		ObsHTTPAddr:          fixPort(getEnv("HTTP_ADDR", ":8090")),
+		RateLimitRequests:    getEnvInt("RATE_LIMIT_REQUESTS", 100),
+		RateLimitWindow:      getEnv("RATE_LIMIT_WINDOW", "1m"),
 	}
 }
 
@@ -70,4 +77,16 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	var i int
+	if _, err := fmt.Sscanf(v, "%d", &i); err != nil {
+		return fallback
+	}
+	return i
 }
