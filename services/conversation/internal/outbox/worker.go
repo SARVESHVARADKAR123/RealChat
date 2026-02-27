@@ -11,10 +11,11 @@ import (
 )
 
 type Worker struct {
-	DB        *sql.DB
-	Producer  *kafka.Producer
-	BatchSize int
-	PollDelay time.Duration
+	DB         *sql.DB
+	Producer   *kafka.Producer
+	BatchSize  int
+	PollDelay  time.Duration
+	MaxRetries int
 }
 
 // Start Worker
@@ -44,7 +45,7 @@ func (w *Worker) processBatch(ctx context.Context) error {
 	}
 
 	rows, err := tx.QueryContext(ctx, `
-		SELECT id, aggregate_id, payload
+		SELECT id, aggregate_type, aggregate_id, event_type, payload, created_at, retry_count
 		FROM outbox_events
 		WHERE processed_at IS NULL
 		ORDER BY id
@@ -59,16 +60,20 @@ func (w *Worker) processBatch(ctx context.Context) error {
 	defer rows.Close()
 
 	type event struct {
-		id          int64
-		aggregateID string
-		payload     []byte
+		id            int64
+		aggregateType string
+		aggregateID   string
+		eventType     string
+		payload       []byte
+		createdAt     time.Time
+		retryCount    int
 	}
 
 	var events []event
 
 	for rows.Next() {
 		var e event
-		if err := rows.Scan(&e.id, &e.aggregateID, &e.payload); err != nil {
+		if err := rows.Scan(&e.id, &e.aggregateType, &e.aggregateID, &e.eventType, &e.payload, &e.createdAt, &e.retryCount); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -81,24 +86,64 @@ func (w *Worker) processBatch(ctx context.Context) error {
 		return nil
 	}
 
+	maxRetries := w.MaxRetries
+	if maxRetries == 0 {
+		maxRetries = 3 // default
+	}
+
+	var batchErr error
+
 	// Publish each event
 	for _, e := range events {
 		if err := w.Producer.Publish(ctx, e.aggregateID, e.payload); err != nil {
 			observability.OutboxPublishFailuresTotal.WithLabelValues("messaging", "messages").Inc()
-			tx.Rollback()
-			return err
-		}
 
-		_, err := tx.ExecContext(ctx, `
-			UPDATE outbox_events
-			SET processed_at = now()
-			WHERE id = $1
-		`, e.id)
-		if err != nil {
-			tx.Rollback()
-			return err
+			if e.retryCount >= maxRetries {
+				_, dbErr := tx.ExecContext(ctx, `
+					INSERT INTO outbox_dlq (id, aggregate_type, aggregate_id, event_type, payload, created_at, failed_at, error, retry_count)
+					VALUES ($1, $2, $3, $4, $5, $6, now(), $7, $8)
+				`, e.id, e.aggregateType, e.aggregateID, e.eventType, e.payload, e.createdAt, err.Error(), e.retryCount+1)
+				if dbErr != nil {
+					tx.Rollback()
+					return dbErr
+				}
+
+				_, dbErr = tx.ExecContext(ctx, `
+					DELETE FROM outbox_events WHERE id = $1
+				`, e.id)
+				if dbErr != nil {
+					tx.Rollback()
+					return dbErr
+				}
+			} else {
+				_, dbErr := tx.ExecContext(ctx, `
+					UPDATE outbox_events
+					SET retry_count = retry_count + 1, error = $2
+					WHERE id = $1
+				`, e.id, err.Error())
+				if dbErr != nil {
+					tx.Rollback()
+					return dbErr
+				}
+			}
+
+			batchErr = err
+			break
+		} else {
+			_, err := tx.ExecContext(ctx, `
+				UPDATE outbox_events
+				SET processed_at = now()
+				WHERE id = $1
+			`, e.id)
+			if err != nil {
+				tx.Rollback()
+				return err
+			}
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return batchErr
 }
