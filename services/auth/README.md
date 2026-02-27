@@ -1,50 +1,69 @@
-# Auth Service
+# 🔐 Auth Service
 
-The **Auth** service is a core microservice in the RealChat application responsible for identity management. It handles user registration, authentication (login/logout), and secure token lifecycle management using JSON Web Tokens (JWT).
+The **Auth Service** is the identity management core of the RealChat distributed system. 
+It securely handles user registration, authentication, JWT token issuance, and password management.
 
-## 🚀 Responsibilities & Features
+---
 
-- **User Registration**: Securely registers new users, hashes passwords using bcrypt, and persists credentials.
-- **Authentication**: Validates credentials and issues short-lived access tokens and long-lived refresh tokens.
-- **Token Management**: Implements secure refresh flows to maintain seamless user sessions without requiring repeated logins.
-- **Logout Support**: Invalidates refresh tokens to securely terminate user sessions.
+## 🎯 1. Responsibilities
 
-## 🔄 Event-Driven Architecture (EDA) Integration
+| Responsibility | Description |
+| :--- | :--- |
+| **Registration** | Creates new accounts, hashes passwords, and saves credentials. |
+| **Authentication** | Validates email/password and issues access & refresh tokens. |
+| **JWT Issuance** | Generates short-lived stateless JSON Web Tokens. |
+| **Token Validation** | Provides keys to the API Gateway to validate tokens independently. |
+| **Session Control** | Manages refresh token rotation and handles secure user logouts. |
+| **Event Publishing** | Emits `USER_CREATED` events to provision resources in other services asynchronously. |
 
-While primarily a synchronous service handling direct client requests, the Auth service contributes to the EDA ecosystem:
+---
 
-- **Lifecycle Events**: Upon successful registration, the service may publish a `UserRegistered` event to **Apache Kafka**.
-- **Asynchronous Onboarding**: Downstream services (like Profile) can asynchronously consume these events to initialize default sub-records (e.g., creating a blank profile) without slowing down the initial registration request.
+## 🔑 2. JWT Strategy
 
-## 📡 API Contract (gRPC)
+| Feature | Details |
+| :--- | :--- |
+| **Algorithm** | Symmetric **HS256** (HMAC + SHA-256) |
+| **Access Tokens** | Short-lived & stateless. Expires in **60 mins** (by default). Contains `sub`, `iss`, `aud`, `iat`, `exp` claims. |
+| **Refresh Tokens** | Long-lived & stateful. Expires in **24 hours** (by default). Consumed and rotated on each use. |
 
-The service exposes the following RPC methods defined in `auth_api.proto`:
+*Keys and expiration times are fully configurable via environment variables.*
 
-| RPC Method | Request payload | Response payload | Description |
-| :--- | :--- | :--- | :--- |
-| `Register` | `RegisterRequest` (email, password) | `RegisterResponse` (user_id) | Creates a new user account. |
-| `Login` | `LoginRequest` (email, password) | `LoginResponse` (access_token, refresh_token) | Authenticates a user and returns JWTs. |
-| `Refresh` | `RefreshRequest` (refresh_token) | `RefreshResponse` (access_token, refresh_token) | Issues a new access token using a valid refresh token. |
-| `Logout` | `LogoutRequest` (refresh_token) | `LogoutResponse` | Revokes the provided refresh token. |
+---
 
-## 🛠 Tech Stack & Architecture
+## 🛡️ 3. Password Security
 
-- **Language**: Go
-- **Communication Protocol**: gRPC (`realchat.auth.v1.AuthApi`)
-- **Database**: PostgreSQL (Stores user credentials and hashed passwords securely)
-- **Security**: JWT (Access & Refresh tokens), bcrypt (Password hashing)
+- **Algorithm**: `bcrypt`
+- **Work Factor (Cost)**: `12`
+- **Zero Plaintext Principle**: Passwords are never logged, exposed via APIs, or kept in memory longer than necessary.
 
-## ⚙️ Running Locally
+---
 
-The Auth service is typically started alongside its PostgreSQL dependency using Docker Compose:
-```bash
-cd infra/local
-docker compose up -d
-```
+## ⚠️ 4. Failure Cases
 
-To run independently during development:
-```bash
-cd services/auth
-go run cmd/main.go
-```
-*Note: Ensure PostgreSQL is running and the database connection string is properly configured.*
+How the service gracefully handles edge cases:
+
+- **Invalid Credentials**: Returns a generic `InvalidCredentials` error for both wrong passwords and missing users (prevents user enumeration).
+- **Expired/Invalid Refresh Tokens**: Returns `InvalidToken`, forcing the user to re-login.
+- **Database Outages**: Fails securely with an internal error, never leaking infrastructure details.
+
+---
+
+## 🔒 5. Security Considerations
+
+- **Secure Storage**: Refresh tokens are cryptographically hashed (**SHA-256**) *before* they hit the database. A database dump does not expose usable refresh tokens.
+- **Instant Revocation**: Logging out instantly revokes exactly one refresh token family, letting users kick stolen devices off the platform.
+
+---
+
+## 🌐 6. Integration with Gateway
+
+- **Public Routes**: The API Gateway blindly proxies unauthenticated routes directly to this service (`/register`, `/login`).
+- **Decentralized Validation**: The Gateway holds the `JWT_SECRET` and validates tokens on its own. The Auth Service acts purely as the **issuer**, dramatically cutting down internal network traffic.
+
+---
+
+## 📈 7. Scalability
+
+- **100% Stateless**: No session data is stored in memory. The service can be horizontally scaled infinitely behind a load balancer.
+- **Edge Offloading**: Access token validation happens at the edge (API Gateway). The Auth database is only queried during initial logins, registrations, and token refreshes.
+- **Event-Driven**: Post-registration side-effects are delegated to Kafka via the **Transactional Outbox**, keeping the registration endpoint extremely fast.
