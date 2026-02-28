@@ -172,3 +172,20 @@ To run the system in a production environment, use the provided `docker-compose.
 docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 *This command spins up the entire RealChat stack using production configurations. Pre-built images are pulled directly from Docker Hub.*
+
+---
+
+## 🧪 Testing
+
+All API endpoints are exposed through the **API Gateway** (`http://localhost:8080`). Use the guide below to test every endpoint step-by-step via Postman — no CLI tools required.
+
+👉 **[Postman Execution Guide](./POSTMAN_TESTING_EXECUTION.md)**
+
+The guide covers:
+- Auth (register, login, refresh, logout)
+- Profile (get, update)
+- Conversations (create, list, get)
+- Participants (add, remove)
+- Messages (send, sync, delete)
+- Read Receipts
+- Presence
