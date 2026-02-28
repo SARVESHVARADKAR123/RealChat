@@ -1,0 +1,330 @@
+name: realchat-prod
+
+networks:
+  realchat:
+
+volumes:
+  postgres-data:
+
+services:
+
+  # ================= INFRA =================
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.53
+    restart: unless-stopped
+    networks: [realchat]
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+
+  prometheus:
+    image: prom/prometheus:v2.49.1
+    restart: unless-stopped
+    networks: [realchat]
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:10.3.1
+    restart: unless-stopped
+    networks: [realchat]
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    networks: [realchat]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    networks: [realchat]
+    ports:
+      - "6379:6379"
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    restart: unless-stopped
+    networks: [realchat]
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    restart: unless-stopped
+    networks: [realchat]
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  # ================= KAFKA TOPIC INIT =================
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.0
+    restart: "no"
+    networks: [realchat]
+    depends_on:
+      - kafka
+    entrypoint: [ "bash", "-c" ]
+    command: |
+      echo "Waiting for Kafka..."
+      sleep 10
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic messaging.events.v1 --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic conversation.events.v1 --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic auth.user.created --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic profile.updated --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic contact.added --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic contact.removed --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic user.blocked --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic user.unblocked --partitions 1 --replication-factor 1
+      echo "Kafka topics ready."
+
+  # ================= MIGRATIONS =================
+  auth-migrate:
+    image: migrate/migrate
+    restart: "on-failure"
+    networks: [realchat]
+    depends_on:
+      - postgres
+    command: [ "-path", "/migrations", "-database", "${AUTH_DATABASE_URL}", "up" ]
+    volumes:
+      - ./services/auth/migrations:/migrations
+
+  profile-migrate:
+    image: migrate/migrate
+    restart: "on-failure"
+    networks: [realchat]
+    depends_on:
+      - postgres
+    command: [ "-path", "/migrations", "-database", "${PROFILE_DATABASE_URL}", "up" ]
+    volumes:
+      - ./services/profile/migrations:/migrations
+
+  message-migrate:
+    image: migrate/migrate
+    restart: "on-failure"
+    networks: [realchat]
+    depends_on:
+      - postgres
+    command: [ "-path", "/migrations", "-database", "${MESSAGING_DATABASE_URL}", "up" ]
+    volumes:
+      - ./services/message/migrations:/migrations
+
+  conversation-migrate:
+    image: migrate/migrate
+    restart: "on-failure"
+    networks: [realchat]
+    depends_on:
+      - postgres
+    command: [ "-path", "/migrations", "-database", "${CONVERSATION_DATABASE_URL}", "up" ]
+    volumes:
+      - ./services/conversation/migrations:/migrations
+
+  # ================= AUTH =================
+
+  auth:
+    image: shadow456/realchat-auth:1.0.0
+    restart: unless-stopped
+    networks: [realchat]
+    depends_on:
+      auth-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${AUTH_DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      HTTP_ADDR: ${AUTH_HTTP_ADDR}
+      GRPC_ADDR: ${AUTH_GRPC_ADDR}
+      OBS_HTTP_ADDR: ${AUTH_OBS_HTTP_ADDR}
+      SERVICE_NAME: auth-service
+      KAFKA_BROKERS: ${KAFKA_BROKER}
+      REDIS_ADDR: ${REDIS_ADDR}
+    ports:
+      - "8081:8081"
+      - "50051:50051"
+      - "8091:8091"
+
+  # ================= PROFILE =================
+
+  profile:
+    image: shadow456/realchat-profile:${APP_VERSION}
+    restart: unless-stopped
+    networks: [realchat]
+    depends_on:
+      profile-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${PROFILE_DATABASE_URL}
+      KAFKA_BROKERS: ${KAFKA_BROKER}
+      REDIS_ADDR: ${REDIS_ADDR}
+      HTTP_PORT: ${PROFILE_HTTP_PORT}
+      GRPC_ADDR: ${PROFILE_GRPC_ADDR}
+      HTTP_ADDR: ${PROFILE_HTTP_ADDR}
+      JWT_SECRET: ${JWT_SECRET}
+      SERVICE_NAME: profile-service
+    ports:
+      - "8082:8082"
+      - "50052:50052"
+      - "8092:8092"
+
+  # ================= MESSAGING =================
+
+  messaging:
+    image: shadow456/realchat-messaging:${APP_VERSION}
+    restart: unless-stopped
+    networks: [realchat]
+    depends_on:
+      message-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${MESSAGING_DATABASE_URL}
+      KAFKA_BROKERS: ${KAFKA_BROKER}
+      REDIS_ADDR: ${REDIS_ADDR}
+      GRPC_ADDR: ${MSG_GRPC_ADDR}
+      HTTP_ADDR: ${MESSAGING_HTTP_ADDR}
+      KAFKA_TOPIC: ${MESSAGING_KAFKA_TOPIC}
+      CONVERSATION_SVC_ADDR: ${CONV_GRPC_ADDR}
+      SERVICE_NAME: messaging-service
+    ports:
+      - "50053:50053"
+      - "8094:8094"
+
+  # ================= CONVERSATION =================
+
+  conversation:
+    image: shadow456/realchat-conversation:${APP_VERSION}
+    restart: unless-stopped
+    networks: [realchat]
+    depends_on:
+      conversation-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${CONVERSATION_DATABASE_URL}
+      KAFKA_BROKERS: ${KAFKA_BROKER}
+      REDIS_ADDR: ${REDIS_ADDR}
+      GRPC_ADDR: ${CONV_GRPC_ADDR}
+      HTTP_ADDR: ${CONVERSATION_HTTP_ADDR}
+      KAFKA_TOPIC: ${CONVERSATION_KAFKA_TOPIC}
+      SERVICE_NAME: conversation-service
+    ports:
+      - "50055:50055"
+      - "8095:8095"
+
+  # ================= PRESENCE =================
+
+  presence:
+    image: shadow456/realchat-presence:${APP_VERSION}
+    restart: unless-stopped
+    networks: [realchat]
+    env_file:
+      - .env
+    environment:
+      REDIS_ADDR: ${REDIS_ADDR}
+      GRPC_ADDR: ${PRESENCE_GRPC_ADDR}
+      HTTP_ADDR: ${PRESENCE_HTTP_ADDR}
+      INSTANCE_ID: ${PRESENCE_INSTANCE_ID}
+      SERVICE_NAME: presence-service
+    ports:
+      - "50056:50056"
+      - "8096:8096"
+
+  # ================= DELIVERY =================
+
+  delivery:
+    image: shadow456/realchat-delivery:${APP_VERSION}
+    restart: unless-stopped
+    networks: [realchat]
+    env_file:
+      - .env
+    environment:
+      KAFKA_BROKERS: ${KAFKA_BROKER}
+      REDIS_ADDR: ${REDIS_ADDR}
+      HTTP_PORT: ${DELIVERY_HTTP_PORT}
+      HTTP_ADDR: ${DELIVERY_HTTP_ADDR}
+      KAFKA_TOPICS: ${DELIVERY_KAFKA_TOPICS}
+      MSG_SVC_ADDR: ${MSG_GRPC_ADDR}
+      CONV_SVC_ADDR: ${CONV_GRPC_ADDR}
+      PRESENCE_SVC_ADDR: ${PRESENCE_GRPC_ADDR}
+      INSTANCE_ID: ${DELIVERY_INSTANCE_ID}
+      JWT_SECRET: ${JWT_SECRET}
+      SERVICE_NAME: delivery-service
+    ports:
+      - "8083:8083"
+      - "8093:8093"
+
+  # ================= GATEWAY =================
+
+  gateway:
+    image: shadow456/realchat-gateway:${APP_VERSION}
+    restart: unless-stopped
+    networks: [realchat]
+    env_file:
+      - .env
+    environment:
+      PORT: ${GATEWAY_PORT}
+      HTTP_ADDR: ${GATEWAY_HTTP_ADDR}
+      AUTH_GRPC_ADDR: ${AUTH_GRPC_ADDR}
+      PROFILE_GRPC_ADDR: ${PROFILE_GRPC_ADDR}
+      MSG_GRPC_ADDR: ${MSG_GRPC_ADDR}
+      CONV_GRPC_ADDR: ${CONV_GRPC_ADDR}
+      PRESENCE_GRPC_ADDR: ${PRESENCE_GRPC_ADDR}
+      JWT_SECRET: ${JWT_SECRET}
+      SERVICE_NAME: gateway
+    ports:
+      - "8080:8080"
+      - "8090:8090"
+
+  # ================= NGINX =================
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    networks: [realchat]
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - delivery

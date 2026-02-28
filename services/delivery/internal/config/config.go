@@ -25,20 +25,20 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		ReqHTTPAddr:         fixPort(getEnv("HTTP_PORT", ":8083")),
-		RedisAddr:           getEnv("REDIS_ADDR", "localhost:6379"),
-		KafkaBrokers:        strings.Split(getEnv("KAFKA_BROKERS", "localhost:9092"), ","),
-		KafkaTopics:         strings.Split(getEnv("KAFKA_TOPICS", "message-events"), ","),
-		InstanceID:          getEnv("INSTANCE_ID", getEnv("HOSTNAME", "")),
-		MessagingSvcAddr:    getEnv("MSG_SVC_ADDR", "localhost:50052"),
-		ConversationSvcAddr: getEnv("CONV_SVC_ADDR", "localhost:50051"),
-		PresenceSvcAddr:     getEnv("PRESENCE_SVC_ADDR", "localhost:50053"),
-		JWTSecret:           getEnv("JWT_SECRET", "secret"),
-		ServiceName:         getEnv("SERVICE_NAME", "delivery-service"),
+		ReqHTTPAddr:         fixPort(mustEnv("HTTP_PORT")),
+		RedisAddr:           mustEnv("REDIS_ADDR"),
+		KafkaBrokers:        strings.Split(mustEnv("KAFKA_BROKERS"), ","),
+		KafkaTopics:         strings.Split(mustEnv("KAFKA_TOPICS"), ","),
+		InstanceID:          mustEnv("INSTANCE_ID"),
+		MessagingSvcAddr:    mustEnv("MSG_SVC_ADDR"),
+		ConversationSvcAddr: mustEnv("CONV_SVC_ADDR"),
+		PresenceSvcAddr:     mustEnv("PRESENCE_SVC_ADDR"),
+		JWTSecret:           mustEnv("JWT_SECRET"),
+		ServiceName:         mustEnv("SERVICE_NAME"),
 		MetricsEnabled:      getEnvBool("METRICS_ENABLED", false),
 		TracingEnabled:      getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:           getEnv("JAEGER_URL", "http://localhost:14268/api/traces"),
-		ObsHTTPAddr:         fixPort(getEnv("HTTP_ADDR", ":8093")),
+		JaegerURL:           getEnv("JAEGER_URL", "http://jaeger:14268/api/traces"),
+		ObsHTTPAddr:         fixPort(mustEnv("HTTP_ADDR")),
 	}
 }
 

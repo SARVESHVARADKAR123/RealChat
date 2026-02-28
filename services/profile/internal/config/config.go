@@ -24,19 +24,19 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		DatabaseURL:    getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/profile?sslmode=disable"),
-		RedisAddr:      getEnv("REDIS_ADDR", "localhost:6379"),
-		KafkaBrokers:   getEnv("KAFKA_BROKERS", "localhost:9092"),
-		JWTIssuer:      getEnv("JWT_ISSUER", "realchat"),
-		JWTAudience:    getEnv("JWT_AUDIENCE", "realchat"),
-		JWTSecret:      getEnv("JWT_SECRET", "secret"),
-		HTTPPort:       fixPort(getEnv("HTTP_PORT", "8082")),
-		GRPCAddr:       fixPort(getEnv("GRPC_ADDR", ":50051")),
-		ServiceName:    getEnv("SERVICE_NAME", "profile-service"),
+		DatabaseURL:    mustEnv("DATABASE_URL"),
+		RedisAddr:      mustEnv("REDIS_ADDR"),
+		KafkaBrokers:   mustEnv("KAFKA_BROKERS"),
+		JWTIssuer:      getEnv("JWT_ISSUER", "realchat-auth"), // Keep sensible defaults for internal constants
+		JWTAudience:    getEnv("JWT_AUDIENCE", "realchat-clients"),
+		JWTSecret:      mustEnv("JWT_SECRET"),
+		HTTPPort:       fixPort(mustEnv("HTTP_PORT")),
+		GRPCAddr:       fixPort(mustEnv("GRPC_ADDR")),
+		ServiceName:    mustEnv("SERVICE_NAME"),
 		MetricsEnabled: getEnvBool("METRICS_ENABLED", false),
 		TracingEnabled: getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:      getEnv("JAEGER_URL", "http://localhost:14268/api/traces"),
-		ObsHTTPAddr:    fixPort(getEnv("HTTP_ADDR", ":8092")),
+		JaegerURL:      getEnv("JAEGER_URL", "http://jaeger:14268/api/traces"),
+		ObsHTTPAddr:    fixPort(mustEnv("HTTP_ADDR")),
 	}
 }
 

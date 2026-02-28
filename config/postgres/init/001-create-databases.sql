@@ -1,0 +1,4 @@
+CREATE DATABASE auth;
+CREATE DATABASE profile;
+CREATE DATABASE messaging;
+CREATE DATABASE conversation;

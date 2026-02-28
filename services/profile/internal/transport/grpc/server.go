@@ -32,9 +32,6 @@ func NewServer(svc *service.ProfileService) *Server {
 
 func (s *Server) Start(port string) error {
 	lisAddr := port
-	if len(port) > 0 && port[0] != ':' {
-		lisAddr = ":" + port
-	}
 
 	lis, err := net.Listen("tcp", lisAddr)
 	if err != nil {

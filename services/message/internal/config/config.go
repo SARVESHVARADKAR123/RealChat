@@ -22,17 +22,17 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		GRPCAddr:            fixPort(getEnv("GRPC_ADDR", ":50052")),
+		GRPCAddr:            fixPort(mustEnv("GRPC_ADDR")),
 		DatabaseURL:         mustEnv("DATABASE_URL"),
-		KafkaBrokers:        getEnv("KAFKA_BROKERS", "localhost:9092"),
-		KafkaTopic:          getEnv("KAFKA_TOPIC", "message-events"),
-		RedisAddr:           getEnv("REDIS_ADDR", "localhost:6379"),
-		ServiceName:         getEnv("SERVICE_NAME", "message-service"),
-		ObsHTTPAddr:         fixPort(getEnv("HTTP_ADDR", ":8082")),
+		KafkaBrokers:        mustEnv("KAFKA_BROKERS"),
+		KafkaTopic:          mustEnv("KAFKA_TOPIC"),
+		RedisAddr:           mustEnv("REDIS_ADDR"),
+		ServiceName:         mustEnv("SERVICE_NAME"),
+		ObsHTTPAddr:         fixPort(mustEnv("HTTP_ADDR")),
 		MetricsEnabled:      getEnvBool("METRICS_ENABLED", false),
 		TracingEnabled:      getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:           getEnv("JAEGER_URL", "http://localhost:14268/api/traces"),
-		ConversationSvcAddr: getEnv("CONVERSATION_SVC_ADDR", "localhost:50051"),
+		JaegerURL:           getEnv("JAEGER_URL", "http://jaeger:14268/api/traces"),
+		ConversationSvcAddr: mustEnv("CONVERSATION_SVC_ADDR"),
 	}
 }
 

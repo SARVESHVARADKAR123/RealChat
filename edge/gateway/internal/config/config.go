@@ -30,20 +30,20 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		Port:                 getEnv("PORT", "8080"),
-		JWTSecret:            getEnv("JWT_SECRET", "secret"),
-		AuthGRPCAddr:         getEnv("AUTH_GRPC_ADDR", "localhost:50051"),
-		ProfileGRPCAddr:      getEnv("PROFILE_GRPC_ADDR", "localhost:50052"),
-		MessagingGRPCAddr:    getEnv("MSG_GRPC_ADDR", "localhost:50053"),
-		ConversationGRPCAddr: getEnv("CONV_GRPC_ADDR", "conversation:50055"),
-		PresenceGRPCAddr:     getEnv("PRESENCE_GRPC_ADDR", "presence:50056"),
-		ServiceName:          getEnv("SERVICE_NAME", "gateway"),
-		JWTIssuer:            getEnv("JWT_ISSUER", "realchat-auth"),
+		Port:                 mustEnv("PORT"),
+		JWTSecret:            mustEnv("JWT_SECRET"),
+		AuthGRPCAddr:         mustEnv("AUTH_GRPC_ADDR"),
+		ProfileGRPCAddr:      mustEnv("PROFILE_GRPC_ADDR"),
+		MessagingGRPCAddr:    mustEnv("MSG_GRPC_ADDR"),
+		ConversationGRPCAddr: mustEnv("CONV_GRPC_ADDR"),
+		PresenceGRPCAddr:     mustEnv("PRESENCE_GRPC_ADDR"),
+		ServiceName:          mustEnv("SERVICE_NAME"),
+		JWTIssuer:            getEnv("JWT_ISSUER", "realchat-auth"), // Keep sensible defaults for internal constants
 		JWTAudience:          getEnv("JWT_AUDIENCE", "realchat-clients"),
 		MetricsEnabled:       getEnvBool("METRICS_ENABLED", false),
 		TracingEnabled:       getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:            getEnv("JAEGER_URL", "http://localhost:14268/api/traces"),
-		ObsHTTPAddr:          fixPort(getEnv("HTTP_ADDR", ":8090")),
+		JaegerURL:            getEnv("JAEGER_URL", "http://jaeger:14268/api/traces"),
+		ObsHTTPAddr:          fixPort(mustEnv("HTTP_ADDR")),
 		RateLimitRequests:    getEnvInt("RATE_LIMIT_REQUESTS", 100),
 		RateLimitWindow:      getEnv("RATE_LIMIT_WINDOW", "1m"),
 	}

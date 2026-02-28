@@ -19,14 +19,14 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		RedisAddr:      getEnv("REDIS_ADDR", "localhost:6379"),
-		GRPCAddr:       fixPort(getEnv("GRPC_ADDR", ":50056")),
-		ObsHTTPAddr:    fixPort(getEnv("HTTP_ADDR", ":8096")),
-		InstanceID:     getEnv("INSTANCE_ID", ""),
-		ServiceName:    getEnv("SERVICE_NAME", "presence-service"),
+		RedisAddr:      mustEnv("REDIS_ADDR"),
+		GRPCAddr:       fixPort(mustEnv("GRPC_ADDR")),
+		ObsHTTPAddr:    fixPort(mustEnv("HTTP_ADDR")),
+		InstanceID:     mustEnv("INSTANCE_ID"),
+		ServiceName:    mustEnv("SERVICE_NAME"),
 		MetricsEnabled: getEnvBool("METRICS_ENABLED", false),
 		TracingEnabled: getEnvBool("TRACING_ENABLED", false),
-		JaegerURL:      getEnv("JAEGER_URL", "http://localhost:14268/api/traces"),
+		JaegerURL:      getEnv("JAEGER_URL", "http://jaeger:14268/api/traces"),
 	}
 }
 

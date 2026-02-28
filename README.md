@@ -75,15 +75,100 @@ RealChat's design explicitly accounts for infrastructure volatility:
 
 ---
 
+## ⚙️ Environment Configuration (`.env`)
+
+Before running the system (locally or in production), you must define the necessary environment variables. The system relies heavily on these configurations for database connections, Kafka routing, internal gRPC addresses, and security keys.
+
+### � Example `.env` for Local Development
+Create a `.env` file in the root of the project and paste the following configuration. This setup operates perfectly with the local `docker-compose.yml`.
+
+```env
+# ================= DATABASE =================
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=realchat
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+
+AUTH_DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/auth?sslmode=disable
+PROFILE_DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/profile?sslmode=disable
+MESSAGING_DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/messaging?sslmode=disable
+CONVERSATION_DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/conversation?sslmode=disable
+
+# ================= INFRASTRUCTURE =================
+REDIS_ADDR=redis:6379
+ZOOKEEPER_CLIENT_PORT=2181
+KAFKA_BROKER_ID=1
+KAFKA_BROKER=kafka:9092
+KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092
+KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+
+# ================= ROUTING & API GATEWAY =================
+GATEWAY_PORT=8080
+GATEWAY_HTTP_ADDR=8090
+
+# ================= GRPC ADDRESSES =================
+AUTH_GRPC_ADDR=auth:50051
+PROFILE_GRPC_ADDR=profile:50052
+MSG_GRPC_ADDR=messaging:50053
+CONV_GRPC_ADDR=conversation:50055
+PRESENCE_GRPC_ADDR=presence:50056
+
+# ================= HTTP ADDRESSES & PORTS =================
+AUTH_HTTP_ADDR=8081
+AUTH_OBS_HTTP_ADDR=8091
+PROFILE_HTTP_PORT=8082
+PROFILE_HTTP_ADDR=8092
+MESSAGING_HTTP_ADDR=8094
+CONVERSATION_HTTP_ADDR=8095
+PRESENCE_HTTP_ADDR=8096
+DELIVERY_HTTP_PORT=8083
+DELIVERY_HTTP_ADDR=8093
+
+# ================= KAFKA TOPICS & INSTANCES =================
+MESSAGING_KAFKA_TOPIC=messaging.events.v1
+CONVERSATION_KAFKA_TOPIC=conversation.events.v1
+DELIVERY_KAFKA_TOPICS=messaging.events.v1,conversation.events.v1
+PRESENCE_INSTANCE_ID=presence-1
+DELIVERY_INSTANCE_ID=delivery-1
+
+# ================= APPLICATION & SECURITY =================
+APP_VERSION=1.0.0
+JWT_SECRET=dev-secret-change-me-in-prod
+```
+
+### 🔐 Detailed Breakdown for Production (`.env.prod`)
+
+When moving to production, you will need to replace the local simulated values with robust and secure counterparts in a `.env.prod` file:
+
+- **Database**: `POSTGRES_HOST` and `POSTGRES_PORT` should point to your managed database cluster. All `DATABASE_URL` strings must use strong passwords.
+- **Infrastructure**: Update `KAFKA_BROKER`, `REDIS_ADDR` to point to production clusters. Update `KAFKA_ADVERTISED_LISTENERS` so brokers can be routed properly.
+- **Security**: Generate a highly secure `JWT_SECRET` (e.g., using `openssl rand -base64 32`).
+
+---
+
 ## 💻 Running Locally
 
-You can easily spin up the entire system locally utilizing Docker Compose.
+You can easily spin up the entire system locally utilizing Docker Compose now that your `.env` is configured.
 
 ### Prerequisites
 - Docker and Docker Compose
+- `.env` file configured in the project root.
 
-### Start the Services
+### Start the Services Locally
 ```bash
 docker-compose up -d --build
 ```
-*This command initializes PostgreSQL, Redis, Kafka, Zookeeper, and all RealChat microservices.*
+*This command initializes PostgreSQL, Redis, Kafka, Zookeeper, and all RealChat microservices for local development.*
+
+---
+
+## 🌐 Running in Production
+
+To run the system in a production environment, use the provided `docker-compose.prod.yml` file. Ensure you load the production environment variables (`.env.prod`) mirroring the variable structure above but containing strong production secrets, managed databases, or external Kafka clusters.
+
+### Start the Services in Production
+```bash
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+*This command spins up the entire RealChat stack using production configurations.*

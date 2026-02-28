@@ -47,10 +47,10 @@ func Load() Config {
 		KafkaBrokers: getEnvSlice("KAFKA_BROKERS", nil),
 
 		// Runtime
-		HTTPAddr:    fixPort(getEnv("HTTP_ADDR", ":8081")),
-		GRPCAddr:    fixPort(getEnv("GRPC_ADDR", ":50051")),
-		ObsHTTPAddr: fixPort(getEnv("OBS_HTTP_ADDR", ":8091")),
-		ServiceName: getEnv("SERVICE_NAME", "auth-service"),
+		HTTPAddr:    fixPort(mustEnv("HTTP_ADDR")),
+		GRPCAddr:    fixPort(mustEnv("GRPC_ADDR")),
+		ObsHTTPAddr: fixPort(mustEnv("OBS_HTTP_ADDR")),
+		ServiceName: mustEnv("SERVICE_NAME"),
 		LogLevel:    getEnv("LOG_LEVEL", "info"),
 
 		// JWT

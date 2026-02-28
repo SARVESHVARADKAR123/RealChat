@@ -60,6 +60,7 @@ services:
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./config/postgres/init:/docker-entrypoint-initdb.d
@@ -147,7 +148,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: [ "-path", "/migrations", "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth?sslmode=disable", "up" ]
+    command: [ "-path", "/migrations", "-database", "${AUTH_DATABASE_URL}", "up" ]
     volumes:
       - ../services/auth/migrations:/migrations
     restart: "no"
@@ -159,7 +160,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: [ "-path", "/migrations", "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/profile?sslmode=disable", "up" ]
+    command: [ "-path", "/migrations", "-database", "${PROFILE_DATABASE_URL}", "up" ]
     volumes:
       - ../services/profile/migrations:/migrations
     restart: "no"
@@ -171,7 +172,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: [ "-path", "/migrations", "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/messaging?sslmode=disable", "up" ]
+    command: [ "-path", "/migrations", "-database", "${MESSAGING_DATABASE_URL}", "up" ]
     volumes:
       - ../services/message/migrations:/migrations
     restart: "no"
@@ -183,7 +184,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: [ "-path", "/migrations", "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/conversation?sslmode=disable", "up" ]
+    command: [ "-path", "/migrations", "-database", "${CONVERSATION_DATABASE_URL}", "up" ]
     volumes:
       - ../services/conversation/migrations:/migrations
     restart: "no"
@@ -203,17 +204,20 @@ services:
       redis:
         condition: service_started
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/auth?sslmode=disable
-      HTTP_ADDR: ":8081"
-      GRPC_ADDR: ":50051"
+      DATABASE_URL: ${AUTH_DATABASE_URL}
+      HTTP_ADDR: ${AUTH_HTTP_ADDR}
+      GRPC_ADDR: ${AUTH_GRPC_ADDR}
       SERVICE_NAME: auth-service
-      OBS_HTTP_ADDR: ":8091"
+      OBS_HTTP_ADDR: ${AUTH_OBS_HTTP_ADDR}
+      JWT_SECRET: ${JWT_SECRET}
+      KAFKA_BROKERS: ${KAFKA_BROKER}
+      REDIS_ADDR: ${REDIS_ADDR}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8091/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost${AUTH_OBS_HTTP_ADDR}/health/live"]
     ports:
       - "8081:8081"
       - "50051:50051"
-      - "8091:8091"
+      - "${AUTH_OBS_HTTP_ADDR}:${AUTH_OBS_HTTP_ADDR}"
 
   # ================= PROFILE SERVICE =================
   profile:
@@ -230,17 +234,20 @@ services:
       redis:
         condition: service_started
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/profile?sslmode=disable
-      HTTP_PORT: "8082"
-      GRPC_ADDR: ":50052"
+      DATABASE_URL: ${PROFILE_DATABASE_URL}
+      HTTP_PORT: ${PROFILE_HTTP_PORT}
+      GRPC_ADDR: ${PROFILE_GRPC_ADDR}
       SERVICE_NAME: profile-service
-      HTTP_ADDR: ":8092"
+      HTTP_ADDR: ${PROFILE_HTTP_ADDR}
+      JWT_SECRET: ${JWT_SECRET}
+      KAFKA_BROKERS: ${KAFKA_BROKER}
+      REDIS_ADDR: ${REDIS_ADDR}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8092/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost${PROFILE_HTTP_ADDR}/health/live"]
     ports:
       - "8082:8082"
       - "50052:50052"
-      - "8092:8092"
+      - "${PROFILE_HTTP_ADDR}:${PROFILE_HTTP_ADDR}"
 
   # ================= MESSAGING SERVICE =================
   messaging:
@@ -257,17 +264,19 @@ services:
       redis:
         condition: service_started
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/messaging?sslmode=disable
-      GRPC_ADDR: ":50053"
-      KAFKA_TOPIC: messaging.events.v1
+      DATABASE_URL: ${MESSAGING_DATABASE_URL}
+      GRPC_ADDR: ${MSG_GRPC_ADDR}
+      KAFKA_TOPIC: ${MESSAGING_KAFKA_TOPIC}
       SERVICE_NAME: messaging-service
-      HTTP_ADDR: ":8094"
-      CONVERSATION_SVC_ADDR: conversation:50055
+      HTTP_ADDR: ${MESSAGING_HTTP_ADDR}
+      CONVERSATION_SVC_ADDR: ${CONV_GRPC_ADDR}
+      KAFKA_BROKERS: ${KAFKA_BROKER}
+      REDIS_ADDR: ${REDIS_ADDR}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8094/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost${MESSAGING_HTTP_ADDR}/health/live"]
     ports:
-      - "50053:50053"
       - "8094:8094"
+      - "50053:50053"
 
   # ================= CONVERSATION SERVICE =================
   conversation:
@@ -284,16 +293,18 @@ services:
       redis:
         condition: service_started
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/conversation?sslmode=disable
-      GRPC_ADDR: ":50055"
-      KAFKA_TOPIC: conversation.events.v1
+      DATABASE_URL: ${CONVERSATION_DATABASE_URL}
+      GRPC_ADDR: ${CONV_GRPC_ADDR}
+      KAFKA_TOPIC: ${CONVERSATION_KAFKA_TOPIC}
       SERVICE_NAME: conversation-service
-      HTTP_ADDR: ":8095"
+      HTTP_ADDR: ${CONVERSATION_HTTP_ADDR}
+      KAFKA_BROKERS: ${KAFKA_BROKER}
+      REDIS_ADDR: ${REDIS_ADDR}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8095/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost${CONVERSATION_HTTP_ADDR}/health/live"]
     ports:
-      - "50055:50055"
       - "8095:8095"
+      - "50055:50055"
 
   # ================= DELIVERY SERVICE =================
   delivery:
@@ -314,16 +325,18 @@ services:
       presence:
         condition: service_started
     environment:
-      HTTP_PORT: ":8083"
-      KAFKA_TOPICS: messaging.events.v1,conversation.events.v1
-      MSG_SVC_ADDR: messaging:50053
-      CONV_SVC_ADDR: conversation:50055
-      PRESENCE_SVC_ADDR: presence:50056
-      INSTANCE_ID: delivery-1
+      HTTP_PORT: ${DELIVERY_HTTP_PORT}
+      KAFKA_TOPICS: ${DELIVERY_KAFKA_TOPICS}
+      MSG_SVC_ADDR: ${MSG_GRPC_ADDR}
+      CONV_SVC_ADDR: ${CONV_GRPC_ADDR}
+      PRESENCE_SVC_ADDR: ${PRESENCE_GRPC_ADDR}
+      INSTANCE_ID: ${DELIVERY_INSTANCE_ID}
       SERVICE_NAME: delivery-service
-      HTTP_ADDR: ":8093"
+      HTTP_ADDR: ${DELIVERY_HTTP_ADDR}
+      KAFKA_BROKERS: ${KAFKA_BROKER}
+      REDIS_ADDR: ${REDIS_ADDR}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8093/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost${DELIVERY_HTTP_ADDR}/health/live"]
     ports:
       - "8083:8083"
       - "8093:8093"
@@ -339,15 +352,16 @@ services:
       redis:
         condition: service_started
     environment:
-      GRPC_ADDR: ":50056"
-      INSTANCE_ID: presence-1
+      GRPC_ADDR: ${PRESENCE_GRPC_ADDR}
+      INSTANCE_ID: ${PRESENCE_INSTANCE_ID}
       SERVICE_NAME: presence-service
-      HTTP_ADDR: ":8096"
+      HTTP_ADDR: ${PRESENCE_HTTP_ADDR}
+      REDIS_ADDR: ${REDIS_ADDR}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8096/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost${PRESENCE_HTTP_ADDR}/health/live"]
     ports:
-      - "50056:50056"
       - "8096:8096"
+      - "50056:50056"
 
   # ================= API GATEWAY =================
   gateway:
@@ -370,16 +384,17 @@ services:
       presence:
         condition: service_started
     environment:
-      PORT: "8080"
-      AUTH_GRPC_ADDR: auth:50051
-      PROFILE_GRPC_ADDR: profile:50052
-      MSG_GRPC_ADDR: messaging:50053
-      CONV_GRPC_ADDR: conversation:50055
-      PRESENCE_GRPC_ADDR: presence:50056
+      PORT: ${GATEWAY_PORT}
+      AUTH_GRPC_ADDR: ${AUTH_GRPC_ADDR}
+      PROFILE_GRPC_ADDR: ${PROFILE_GRPC_ADDR}
+      MSG_GRPC_ADDR: ${MSG_GRPC_ADDR}
+      CONV_GRPC_ADDR: ${CONV_GRPC_ADDR}
+      PRESENCE_GRPC_ADDR: ${PRESENCE_GRPC_ADDR}
       SERVICE_NAME: gateway
-      HTTP_ADDR: ":8090"
+      HTTP_ADDR: ${GATEWAY_HTTP_ADDR}
+      JWT_SECRET: ${JWT_SECRET}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost${GATEWAY_HTTP_ADDR}/health/live"]
     ports:
       - "8080:8080"
       - "8090:8090"

@@ -40,9 +40,6 @@ func New(app *application.Service) *Server {
 func (s *Server) Start(port string) {
 	// If port starts with ":", use it directly. If not, prepend ":"
 	lisAddr := port
-	if len(port) > 0 && port[0] != ':' {
-		lisAddr = ":" + port
-	}
 
 	lis, err := net.Listen("tcp", lisAddr)
 	if err != nil {
