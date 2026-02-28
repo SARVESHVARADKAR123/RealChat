@@ -157,9 +157,9 @@ You can easily spin up the entire system locally utilizing Docker Compose now th
 
 ### Start the Services Locally
 ```bash
-docker-compose up -d --build
+docker-compose up -d
 ```
-*This command initializes PostgreSQL, Redis, Kafka, Zookeeper, and all RealChat microservices for local development.*
+*This command pulls pre-built images from Docker Hub and initializes PostgreSQL, Redis, Kafka, Zookeeper, and all RealChat microservices. There is no need to build images locally.*
 
 ---
 
@@ -169,6 +169,6 @@ To run the system in a production environment, use the provided `docker-compose.
 
 ### Start the Services in Production
 ```bash
-docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
-*This command spins up the entire RealChat stack using production configurations.*
+*This command spins up the entire RealChat stack using production configurations. Pre-built images are pulled directly from Docker Hub.*
